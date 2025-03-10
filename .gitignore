@@ -33,3 +33,7 @@
 
 # JetBrains
 .idea/**
+
+# CMake
+cmake-build-*
+CMakeFiles
