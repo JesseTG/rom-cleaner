@@ -12,21 +12,22 @@ project("ROM cleaner"
         HOMEPAGE_URL "https://jesse.tg"
         LANGUAGES C CXX)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake" "${CMAKE_MODULE_PATH}")
 
 include(FetchContent)
 include(CheckSymbolExists)
 include(cmake/FetchDependencies.cmake)
 include(cmake/ConfigureFeatures.cmake)
 include(cmake/libretro-common.cmake)
-include(embed-binaries)
-
 
 add_library(romcleaner_libretro MODULE
     libretro.cpp
 )
+
+add_subdirectory(assets)
 
 add_common_definitions(romcleaner_libretro)
 add_common_definitions(libretro-common)
