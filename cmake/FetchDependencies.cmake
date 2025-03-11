@@ -39,5 +39,6 @@ endfunction()
 
 fetch_dependency(libretro-common "https://github.com/libretro/libretro-common" "fce57fd")
 fetch_dependency(embed "https://github.com/batterycenter/embed.git" "4650819")
+fetch_dependency(pntr "https://github.com/RobLoach/pntr" "8855a90")
 
-FetchContent_MakeAvailable(libretro-common embed)
+FetchContent_MakeAvailable(libretro-common pntr embed)

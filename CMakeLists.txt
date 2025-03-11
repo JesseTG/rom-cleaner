@@ -25,6 +25,7 @@ include(cmake/libretro-common.cmake)
 
 add_library(romcleaner_libretro MODULE
     libretro.cpp
+    pntr.c
 )
 
 add_subdirectory(assets)
@@ -32,8 +33,19 @@ add_subdirectory(assets)
 add_common_definitions(romcleaner_libretro)
 add_common_definitions(libretro-common)
 
+add_compile_definitions(
+    PNTR_ENABLE_TTF
+    PNTR_ENABLE_FILTER_SMOOTH
+    PNTR_ENABLE_MATH
+    PNTR_ENABLE_VARGS
+    PNTR_PIXELFORMAT_ARGB
+    STB_IMAGE_STATIC # To avoid using any dynamically-linked STB implementations
+    STBI_NO_THREAD_LOCALS
+)
+
 target_include_directories(romcleaner_libretro SYSTEM PUBLIC
     "${libretro-common_SOURCE_DIR}/include"
+    "${pntr_SOURCE_DIR}"
 )
 
 # libretro cores do not start with "lib"
@@ -66,7 +78,7 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID MATCHES "(.+)?
     # This has tripped me up before, so I'm forcing it to be an error.
 endif()
 
-target_link_libraries(romcleaner_libretro PUBLIC libretro-common pntr pntr_nuklear libretro-assets)
+target_link_libraries(romcleaner_libretro PUBLIC libretro-common pntr)
 
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
     message(STATUS "Defining DEBUG in romcleaner_libretro and libretro-common targets")

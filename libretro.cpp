@@ -7,15 +7,34 @@
 
 #include <libretro.h>
 #include <pntr.h>
-#include <pntr_nuklear.h>
 #include <retro_assert.h>
 #include <audio/audio_mixer.h>
 #include <audio/conversion/float_to_s16.h>
 
 using std::array;
 
+constexpr int SAMPLE_RATE = 44100;
+constexpr int SCREEN_WIDTH = 1366;
+constexpr int SCREEN_HEIGHT = 768;
+
 struct CoreState
 {
+    CoreState() noexcept
+    {
+
+    }
+
+    ~CoreState() noexcept
+    {
+    }
+
+    CoreState(const CoreState&) = delete;
+    CoreState& operator=(const CoreState&) = delete;
+    CoreState(CoreState&&) = delete;
+    CoreState& operator=(CoreState&&) = delete;
+
+    void Run();
+    const bool initialized = true;
 };
 
 namespace
