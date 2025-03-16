@@ -16,6 +16,11 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake" "${CMAKE_MODULE_PATH}")
+option(KISSFFT_STATIC "" ON)
+option(KISSFFT_TEST "" OFF)
+option(KISSFFT_PKGCONFIG "" OFF)
+set(KISSFFT_DATATYPE "int16_t")
+option(KISSFFT_TOOLS "" OFF)
 
 include(FetchContent)
 include(CheckSymbolExists)
@@ -46,6 +51,7 @@ add_compile_definitions(
 target_include_directories(romcleaner_libretro SYSTEM PUBLIC
     "${libretro-common_SOURCE_DIR}/include"
     "${pntr_SOURCE_DIR}"
+    "${kissfft_SOURCE_DIR}/include"
 )
 
 # libretro cores do not start with "lib"
@@ -78,7 +84,7 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID MATCHES "(.+)?
     # This has tripped me up before, so I'm forcing it to be an error.
 endif()
 
-target_link_libraries(romcleaner_libretro PUBLIC libretro-common pntr)
+target_link_libraries(romcleaner_libretro PUBLIC libretro-common pntr kissfft)
 
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
     message(STATUS "Defining DEBUG in romcleaner_libretro and libretro-common targets")
