@@ -3,11 +3,14 @@
 #include <array>
 #include <cstddef>
 #include <cstring>
+#include <kiss_fft.h>
 #include <memory>
 
 #include <battery/embed.hpp>
 #include <libretro.h>
+#include <pntr.h>
 #include <retro_assert.h>
+#include <span>
 #include <audio/audio_mixer.h>
 #include <audio/conversion/float_to_s16.h>
 #include <file/file_path.h>
@@ -18,6 +21,14 @@ using std::array;
 constexpr int SAMPLE_RATE = 44100;
 constexpr int SCREEN_WIDTH = 1366;
 constexpr int SCREEN_HEIGHT = 768;
+constexpr double FPS = 60.0;
+constexpr int SAMPLES_PER_FRAME = SAMPLE_RATE / FPS;
+
+static constexpr int RMS_THRESHOLD = 100;  // Further lowered threshold
+static constexpr float BLOW_RATIO = 0.55f; // More lenient ratio
+static constexpr int SMOOTHING_FRAMES = 6;
+static constexpr int LOW_FREQ_LIMIT = 600;  // Expanded range
+static constexpr int ADAPTIVE_WINDOW = 30;  // For background noise estimation
 
 namespace
 {
@@ -34,10 +45,19 @@ struct CoreState
 {
     CoreState() noexcept
     {
+        _framebuffer = pntr_new_image(SCREEN_WIDTH, SCREEN_HEIGHT);
+        retro_assert(_framebuffer != nullptr);
+
+        _fftConfig = kiss_fft_alloc(SAMPLES_PER_FRAME, 0, nullptr, nullptr);
     }
 
     ~CoreState() noexcept
     {
+        kiss_fft_free(_fftConfig);
+
+        pntr_unload_image(_framebuffer);
+        _framebuffer = nullptr;
+
         if (_microphone) {
             _microphoneInterface.set_mic_state(_microphone, false);
             _microphoneInterface.close_mic(_microphone);
@@ -60,6 +80,16 @@ private:
     retro_microphone* _microphone = nullptr;
     retro_microphone_params_t _actualMicParams {};
     double _dustiness = 100.0;
+    bool _micInitialized = false;
+    pntr_image* _framebuffer = nullptr;
+    kiss_fft_cfg _fftConfig = nullptr;
+    double _adaptiveThreshold = RMS_THRESHOLD;
+    size_t _historyIndex = 0;
+    std::array<bool, SMOOTHING_FRAMES> _detectionHistory = {};
+    std::array<double, ADAPTIVE_WINDOW> _backgroundLevels = {};
+    size_t _bgIndex = 0;
+    bool InitMicrophone();
+    bool IsBlowing(std::span<const int16_t> samples);
 };
 
 namespace {
@@ -146,7 +176,7 @@ RETRO_API void retro_get_system_av_info(struct retro_system_av_info *info)
     info->geometry.base_height = SCREEN_HEIGHT;
     info->geometry.max_width = SCREEN_WIDTH;
     info->geometry.max_height = SCREEN_HEIGHT;
-    info->timing.fps = 60.0;
+    info->timing.fps = FPS;
     info->timing.sample_rate = SAMPLE_RATE;
 }
 
@@ -172,7 +202,7 @@ RETRO_API void retro_cheat_set(unsigned, bool, const char *) {}
 /* Loads a game.
  * Return true to indicate successful loading and false to indicate load failure.
  */
-RETRO_API bool retro_load_game(const struct retro_game_info *game)
+RETRO_API bool retro_load_game(const struct retro_game_info *game) try
 {
     if (game == nullptr) {
         _log(RETRO_LOG_ERROR, "No game provided\n");
@@ -180,11 +210,6 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
     }
 
     return Core.LoadGame(*game);
-}
-
-RETRO_API bool retro_load_game_special(unsigned, const retro_game_info *info, size_t) try
-{
-    return retro_load_game(info);
 }
 catch (const std::exception &e) {
     retro_message_ext error {
@@ -197,6 +222,11 @@ catch (const std::exception &e) {
 
     _environment(RETRO_ENVIRONMENT_SET_MESSAGE_EXT, &error);
     return false;
+}
+
+RETRO_API bool retro_load_game_special(unsigned, const retro_game_info *info, size_t)
+{
+    return retro_load_game(info);
 }
 
 /* Unloads the currently loaded game. Called before retro_deinit(void). */
@@ -222,31 +252,102 @@ RETRO_API void retro_run()
     Core.Run();
 }
 
+bool CoreState::IsBlowing(std::span<const int16_t> samples) {
+
+    // Compute RMS Energy
+    double rms = 0.0;
+    for (int16_t sample : samples) {
+        rms += static_cast<double>(sample) * sample;
+    }
+    rms = sqrt(rms / samples.size());
+
+    // Update adaptive background level
+    _backgroundLevels[_bgIndex] = rms;
+    _bgIndex = (_bgIndex + 1) % ADAPTIVE_WINDOW;
+
+    // Calculate adaptive threshold
+    double avgBgNoise = 0.0;
+    for (double level : _backgroundLevels) {
+        avgBgNoise += level;
+    }
+    avgBgNoise /= ADAPTIVE_WINDOW;
+    _adaptiveThreshold = std::max<double>(RMS_THRESHOLD, avgBgNoise * 1.5);
+
+    // Early exit if too quiet
+    if (rms < _adaptiveThreshold) {
+        _detectionHistory[_historyIndex] = false;
+        _historyIndex = (_historyIndex + 1) % SMOOTHING_FRAMES;
+        return false;
+    }
+
+    // Convert samples for FFT (with windowing for better spectral resolution)
+    std::array<kiss_fft_cpx, SAMPLES_PER_FRAME> in, out;
+    for (size_t i = 0; i < samples.size(); i++) {
+        // Apply Hann window for better frequency resolution
+        float window = 0.5f * (1.0f - cos(2.0f * M_PI * i / (samples.size() - 1)));
+        in[i].r = static_cast<float>(samples[i]) / 32768.0f * window;
+        in[i].i = 0;
+    }
+
+    // Execute FFT
+    kiss_fft(_fftConfig, in.data(), out.data());
+
+    // Analyze frequency content
+    double bin_size = SAMPLE_RATE / static_cast<double>(samples.size());
+    double low_freq_energy = 0.0, total_energy = 0.0;
+
+    // Look for blow signature (characteristic hump around 200-400Hz)
+    double blow_signature_energy = 0.0;
+    double signature_peak = 0.0;
+
+    // Skip DC component (i=0)
+    for (int i = 1; i < samples.size() / 2; i++) {
+        double freq = i * bin_size;
+        double magnitude = sqrt(out[i].r * out[i].r + out[i].i * out[i].i);
+        total_energy += magnitude;
+
+        if (freq < LOW_FREQ_LIMIT) {
+            low_freq_energy += magnitude;
+
+            // Look for blow signature (focused energy in 150-450Hz range)
+            if (freq > 150 && freq < 450) {
+                blow_signature_energy += magnitude;
+                signature_peak = std::max(signature_peak, magnitude);
+            }
+        }
+    }
+
+    // Current frame detection (multiple criteria)
+    bool frequencyRatio = (total_energy > 0) && ((low_freq_energy / total_energy) > BLOW_RATIO);
+    bool signatureStrength = (total_energy > 0) && ((blow_signature_energy / total_energy) > 0.3);
+    bool signaturePeak = signature_peak > (total_energy / samples.size() * 3.0);
+
+    bool currentDetection = frequencyRatio && (signatureStrength || signaturePeak);
+
+    // Update history
+    _detectionHistory[_historyIndex] = currentDetection;
+    _historyIndex = (_historyIndex + 1) % SMOOTHING_FRAMES;
+
+    // Count positive detections in history
+    int positiveCount = 0;
+    for (bool detection : _detectionHistory) {
+        if (detection) positiveCount++;
+    }
+
+    // Return true if a significant portion of frames detect blowing
+    return positiveCount >= (SMOOTHING_FRAMES / 3.0);  // More lenient (1/3 instead of 1/2)
+}
 bool CoreState::LoadGame(const retro_game_info& game) {
     if (string_is_empty(game.path)) {
         throw std::runtime_error("No game path provided");
     }
 
+    _microphoneInterface.interface_version = RETRO_MICROPHONE_INTERFACE_VERSION;
     if (!_environment(RETRO_ENVIRONMENT_GET_MICROPHONE_INTERFACE, &_microphoneInterface)) {
         throw std::runtime_error("Failed to get microphone interface");
     }
 
-    retro_microphone_params_t params { 44100 };
-    _microphone = _microphoneInterface.open_mic(&params);
-    if (!_microphone) {
-        throw std::runtime_error("Failed to open microphone");
-    }
-
-    if (!_microphoneInterface.set_mic_state(_microphone, true)) {
-        throw std::runtime_error("Failed to enable microphone");
-    }
-
-    if (!_microphoneInterface.get_params(_microphone, &_actualMicParams)) {
-        throw std::runtime_error("Failed to get microphone parameters");
-    }
-
-    // TODO: Fail if no mic is available
-    // TODO: Fail if path is empty
+    //_micInitialized = InitMicrophone();
 
     std::string_view extension = path_get_extension(game.path);
 
@@ -258,8 +359,55 @@ bool CoreState::LoadGame(const retro_game_info& game) {
 }
 
 
+bool CoreState::InitMicrophone() {
+    retro_microphone_params_t params { 44100 };
+    _microphone = _microphoneInterface.open_mic(&params);
+    if (!_microphone) {
+        _log(RETRO_LOG_ERROR, "Failed to open microphone\n");
+        return false;
+    }
+    _log(RETRO_LOG_INFO, "Microphone initialized\n");
+
+    if (!_microphoneInterface.set_mic_state(_microphone, true)) {
+        _log(RETRO_LOG_ERROR, "Failed to enable microphone\n");
+        return false;
+    }
+    _log(RETRO_LOG_INFO, "Microphone enabled\n");
+
+    if (!_microphoneInterface.get_params(_microphone, &_actualMicParams)) {
+        _log(RETRO_LOG_ERROR, "Failed to get microphone parameters\n");
+        return false;
+    }
+    _log(RETRO_LOG_INFO, "Microphone parameters: rate = %u\n", _actualMicParams.rate);
+
+    return true;
+}
+
 void CoreState::Run()
 {
-    // TODO: Fill the background
+    if (!_micInitialized) {
+        _micInitialized = InitMicrophone();
+    }
 
+    _input_poll();
+
+    std::array<int16_t, SAMPLES_PER_FRAME> samples;
+    int samplesRead = _microphoneInterface.read_mic(_microphone, samples.data(), samples.size());
+
+    if (samplesRead > 0) {
+        bool isBlowing = IsBlowing(std::span(samples.data(), samplesRead));
+        retro_message_ext message {
+            .msg = isBlowing ? "Blowing detected" : "No blowing",
+            .duration = 20,
+            .level = RETRO_LOG_INFO,
+            .target = RETRO_MESSAGE_TARGET_OSD,
+            .type = RETRO_MESSAGE_TYPE_STATUS,
+            .progress = 75,
+        };
+        _environment(RETRO_ENVIRONMENT_SET_MESSAGE_EXT, &message);
+    }
+
+    // TODO: Fill the background
+    _video_refresh(_framebuffer->data, SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_WIDTH * sizeof(pntr_color));
+    //_audio_sample_batch(outbuffer.data(), outbuffer.size() / 2);
 }

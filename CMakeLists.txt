@@ -19,7 +19,6 @@ set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake" "${CMAKE_MODULE_PATH}")
 option(KISSFFT_STATIC "" ON)
 option(KISSFFT_TEST "" OFF)
 option(KISSFFT_PKGCONFIG "" OFF)
-set(KISSFFT_DATATYPE "int16_t")
 option(KISSFFT_TOOLS "" OFF)
 
 include(FetchContent)
