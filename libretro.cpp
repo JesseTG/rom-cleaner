@@ -44,6 +44,9 @@ struct CoreState
         _framebuffer = pntr_new_image(SCREEN_WIDTH, SCREEN_HEIGHT);
         retro_assert(_framebuffer != nullptr);
 
+        _gradientBg = pntr_new_image(SCREEN_WIDTH, SCREEN_HEIGHT);
+        pntr_draw_rectangle_gradient(_gradientBg, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, PNTR_BLUE, PNTR_BLUE, PNTR_SKYBLUE, PNTR_SKYBLUE);
+
         _fftConfig = kiss_fft_alloc(SAMPLES_PER_FRAME, 0, nullptr, nullptr);
     }
 
@@ -53,6 +56,9 @@ struct CoreState
 
         pntr_unload_image(_framebuffer);
         _framebuffer = nullptr;
+
+        pntr_unload_image(_gradientBg);
+        _gradientBg = nullptr;
 
         if (_microphone) {
             _microphoneInterface.set_mic_state(_microphone, false);
@@ -78,6 +84,7 @@ private:
     double _dustiness = 100.0;
     bool _micInitialized = false;
     pntr_image* _framebuffer = nullptr;
+    pntr_image* _gradientBg = nullptr;
     kiss_fft_cfg _fftConfig = nullptr;
     double _adaptiveThreshold = RMS_THRESHOLD;
     size_t _historyIndex = 0;
@@ -403,7 +410,7 @@ void CoreState::Run()
         _environment(RETRO_ENVIRONMENT_SET_MESSAGE_EXT, &message);
     }
 
-    // TODO: Fill the background
+    pntr_draw_image(_framebuffer, _gradientBg, 0, 0);
     _video_refresh(_framebuffer->data, SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_WIDTH * sizeof(pntr_color));
     //_audio_sample_batch(outbuffer.data(), outbuffer.size() / 2);
 }
