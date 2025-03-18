@@ -15,3 +15,7 @@ add_custom_command(
 
 b_embed_proxy_target(romcleaner_libretro assets)
 b_embed(assets "png/snes.png")
+b_embed(assets "dust00.png")
+b_embed(assets "dust01.png")
+b_embed(assets "dust02.png")
+b_embed(assets "dust03.png")
