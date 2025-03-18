@@ -16,13 +16,9 @@
 #include <file/file_path.h>
 #include <string/stdstring.h>
 
+#include "constants.hpp"
 using std::array;
 
-constexpr int SAMPLE_RATE = 44100;
-constexpr int SCREEN_WIDTH = 1366;
-constexpr int SCREEN_HEIGHT = 768;
-constexpr double FPS = 60.0;
-constexpr int SAMPLES_PER_FRAME = SAMPLE_RATE / FPS;
 
 static constexpr int RMS_THRESHOLD = 100;  // Further lowered threshold
 static constexpr float BLOW_RATIO = 0.55f; // More lenient ratio

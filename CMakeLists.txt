@@ -30,6 +30,7 @@ include(cmake/libretro-common.cmake)
 add_library(romcleaner_libretro MODULE
     libretro.cpp
     pntr.c
+    constants.hpp
 )
 
 add_subdirectory(assets)
