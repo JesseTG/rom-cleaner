@@ -1,10 +1,12 @@
 #pragma once
 
-#include <functional>
 #include <vector>
 #include <span>
 
 #include <pntr.h>
+#include <random>
+
+#include "battery/embed.hpp"
 
 struct Particle {
     pntr_vector position {0, 0};
@@ -13,11 +15,18 @@ struct Particle {
     bool alive = false;
 };
 
-using Emitter = std::function<Particle()>;
+struct ParticleSystemArgs {
+    size_t maxParticles;
+    double spawnRate;
+    double baseTimeToLive;
+    pntr_vector baseVelocity;
+    pntr_rectangle spawnArea;
+};
 
 class ParticleSystem {
 public:
-    ParticleSystem(std::span<const uint8_t> image, Emitter emitter, size_t maxParticles) noexcept;
+    ParticleSystem(const b::EmbedInternal::EmbeddedFile& file, const ParticleSystemArgs& args) noexcept;
+    ParticleSystem(std::span<const uint8_t> image, const ParticleSystemArgs& args) noexcept;
     ~ParticleSystem() noexcept;
     ParticleSystem(ParticleSystem&) = delete;
     ParticleSystem(ParticleSystem&&) noexcept;
@@ -26,16 +35,17 @@ public:
 
     void Update(double dt);
     void Draw(pntr_image& framebuffer);
-    void SetSpawnArea(pntr_rectangle area) noexcept {
-        _spawnArea = area;
-    }
+    void SetSpawnArea(pntr_rectangle area) noexcept;
 
-    [[nodiscard]] pntr_rectangle GetSpawnArea() const noexcept { return _spawnArea; }
+    [[nodiscard]] pntr_rectangle GetSpawnArea() const noexcept { return _args.spawnArea; }
 
 private:
     pntr_image* _image = nullptr;
-    pntr_rectangle _spawnArea {};
     std::vector<Particle> _particles {};
-    Emitter _emitter;
-    size_t _maxParticles;
+    ParticleSystemArgs _args;
+    std::default_random_engine _rng {std::random_device{}()};
+    std::uniform_int_distribution<> _randomX;
+    std::uniform_int_distribution<> _randomY;
+
+    void EmitParticle(size_t max);
 };

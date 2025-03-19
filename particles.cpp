@@ -10,17 +10,89 @@
 
 #include <utility>
 
-ParticleSystem::ParticleSystem(std::span<const uint8_t> image, Emitter emitter, size_t maxParticles) noexcept :
+
+ParticleSystem::ParticleSystem(const b::EmbedInternal::EmbeddedFile& file, const ParticleSystemArgs& args) noexcept :
+    ParticleSystem(std::span((const uint8_t*)file.data(), file.size()), args) {
+}
+
+ParticleSystem::ParticleSystem(std::span<const uint8_t> image, const ParticleSystemArgs& args) noexcept :
     _image(pntr_load_image_from_memory(PNTR_IMAGE_TYPE_PNG, image.data(), image.size())),
-    _emitter(std::move(emitter)),
-    _maxParticles(maxParticles)
+    _args(args)
 {
     retro_assert(_image != nullptr);
 
-    _particles.resize(_maxParticles);
+    _particles.resize(_args.maxParticles);
+}
+
+ParticleSystem::ParticleSystem(ParticleSystem&& other) noexcept :
+    _image(other._image),
+    _particles(std::move(other._particles)),
+    _args(other._args),
+    _rng(other._rng),
+    _randomX(other._randomX),
+    _randomY(other._randomY)
+{
+    other._image = nullptr;
+}
+
+ParticleSystem& ParticleSystem::operator=(ParticleSystem&& other) noexcept {
+    if (this != &other) {
+        if (_image) {
+            pntr_unload_image(_image);
+        }
+        _image = other._image;
+        _particles = std::move(other._particles);
+        _args = other._args;
+        _rng = other._rng;
+        _randomX = other._randomX;
+        _randomY = other._randomY;
+
+        other._image = nullptr;
+    }
+    return *this;
+}
+
+ParticleSystem::~ParticleSystem() noexcept {
+    if (_image) {
+        pntr_unload_image(_image);
+        _image = nullptr;
+    }
+}
+
+void ParticleSystem::SetSpawnArea(pntr_rectangle area) noexcept {
+    _args.spawnArea = area;
+    _randomX = std::uniform_int_distribution(area.x, area.x + area.width);
+    _randomY = std::uniform_int_distribution(area.y, area.y + area.height);
+}
+
+void ParticleSystem::EmitParticle(size_t max) {
+    // Find an inactive particle
+    size_t particlesSpawned = 0;
+    for (Particle& p : _particles) {
+        if (particlesSpawned >= max)
+            break;
+
+        if (!p.alive) {
+            p.position.x = _randomX(_rng);
+            p.position.y = _randomY(_rng);
+
+            // Randomize velocity within emitter's range
+            p.velocity.x = _args.baseVelocity.x;
+            p.velocity.y = _args.baseVelocity.y;
+
+            // Set lifetime
+            p.timeToLive = _args.baseTimeToLive;
+
+            p.alive = true;
+            ++particlesSpawned;
+        }
+    }
 }
 
 void ParticleSystem::Update(double dt) {
+    // Emit new particles based on emission rate
+    EmitParticle(_args.spawnRate * dt);
+
     for (Particle& p : _particles) {
         if (p.alive) {
             p.timeToLive -= dt;
