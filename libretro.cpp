@@ -16,15 +16,9 @@
 #include <file/file_path.h>
 #include <string/stdstring.h>
 
+#include "blow.hpp"
 #include "constants.hpp"
 using std::array;
-
-
-static constexpr int RMS_THRESHOLD = 100;  // Further lowered threshold
-static constexpr float BLOW_RATIO = 0.55f; // More lenient ratio
-static constexpr int SMOOTHING_FRAMES = 6;
-static constexpr int LOW_FREQ_LIMIT = 600;  // Expanded range
-static constexpr int ADAPTIVE_WINDOW = 30;  // For background noise estimation
 
 namespace
 {
@@ -47,13 +41,10 @@ struct CoreState
         _gradientBg = pntr_new_image(SCREEN_WIDTH, SCREEN_HEIGHT);
         pntr_draw_rectangle_gradient(_gradientBg, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, PNTR_BLUE, PNTR_BLUE, PNTR_SKYBLUE, PNTR_SKYBLUE);
 
-        _fftConfig = kiss_fft_alloc(SAMPLES_PER_FRAME, 0, nullptr, nullptr);
     }
 
     ~CoreState() noexcept
     {
-        kiss_fft_free(_fftConfig);
-
         pntr_unload_image(_framebuffer);
         _framebuffer = nullptr;
 
@@ -83,16 +74,11 @@ private:
     retro_microphone_params_t _actualMicParams {};
     double _dustiness = 100.0;
     bool _micInitialized = false;
+    BlowDetector _blowDetector {};
     pntr_image* _framebuffer = nullptr;
     pntr_image* _gradientBg = nullptr;
-    kiss_fft_cfg _fftConfig = nullptr;
-    double _adaptiveThreshold = RMS_THRESHOLD;
-    size_t _historyIndex = 0;
-    std::array<bool, SMOOTHING_FRAMES> _detectionHistory = {};
-    std::array<double, ADAPTIVE_WINDOW> _backgroundLevels = {};
-    size_t _bgIndex = 0;
+
     bool InitMicrophone();
-    bool IsBlowing(std::span<const int16_t> samples);
 };
 
 namespace {
@@ -255,91 +241,8 @@ RETRO_API void retro_run()
     Core.Run();
 }
 
-bool CoreState::IsBlowing(std::span<const int16_t> samples) {
 
-    // Compute RMS Energy
-    double rms = 0.0;
-    for (int16_t sample : samples) {
-        rms += static_cast<double>(sample) * sample;
-    }
-    rms = sqrt(rms / samples.size());
 
-    // Update adaptive background level
-    _backgroundLevels[_bgIndex] = rms;
-    _bgIndex = (_bgIndex + 1) % ADAPTIVE_WINDOW;
-
-    // Calculate adaptive threshold
-    double avgBgNoise = 0.0;
-    for (double level : _backgroundLevels) {
-        avgBgNoise += level;
-    }
-    avgBgNoise /= ADAPTIVE_WINDOW;
-    _adaptiveThreshold = std::max<double>(RMS_THRESHOLD, avgBgNoise * 1.5);
-
-    // Early exit if too quiet
-    if (rms < _adaptiveThreshold) {
-        _detectionHistory[_historyIndex] = false;
-        _historyIndex = (_historyIndex + 1) % SMOOTHING_FRAMES;
-        return false;
-    }
-
-    // Convert samples for FFT (with windowing for better spectral resolution)
-    std::array<kiss_fft_cpx, SAMPLES_PER_FRAME> in, out;
-    for (size_t i = 0; i < samples.size(); i++) {
-        // Apply Hann window for better frequency resolution
-        float window = 0.5f * (1.0f - cos(2.0f * M_PI * i / (samples.size() - 1)));
-        in[i].r = static_cast<float>(samples[i]) / 32768.0f * window;
-        in[i].i = 0;
-    }
-
-    // Execute FFT
-    kiss_fft(_fftConfig, in.data(), out.data());
-
-    // Analyze frequency content
-    double bin_size = SAMPLE_RATE / static_cast<double>(samples.size());
-    double low_freq_energy = 0.0, total_energy = 0.0;
-
-    // Look for blow signature (characteristic hump around 200-400Hz)
-    double blow_signature_energy = 0.0;
-    double signature_peak = 0.0;
-
-    // Skip DC component (i=0)
-    for (int i = 1; i < samples.size() / 2; i++) {
-        double freq = i * bin_size;
-        double magnitude = sqrt(out[i].r * out[i].r + out[i].i * out[i].i);
-        total_energy += magnitude;
-
-        if (freq < LOW_FREQ_LIMIT) {
-            low_freq_energy += magnitude;
-
-            // Look for blow signature (focused energy in 150-450Hz range)
-            if (freq > 150 && freq < 450) {
-                blow_signature_energy += magnitude;
-                signature_peak = std::max(signature_peak, magnitude);
-            }
-        }
-    }
-
-    // Current frame detection (multiple criteria)
-    bool frequencyRatio = (total_energy > 0) && ((low_freq_energy / total_energy) > BLOW_RATIO);
-    bool signatureStrength = (total_energy > 0) && ((blow_signature_energy / total_energy) > 0.3);
-    bool signaturePeak = signature_peak > (total_energy / samples.size() * 3.0);
-
-    bool currentDetection = frequencyRatio && (signatureStrength || signaturePeak);
-
-    // Update history
-    _detectionHistory[_historyIndex] = currentDetection;
-    _historyIndex = (_historyIndex + 1) % SMOOTHING_FRAMES;
-
-    // Count positive detections in history
-    int positiveCount = 0;
-    for (bool detection : _detectionHistory) {
-        if (detection) positiveCount++;
-    }
-
-    // Return true if a significant portion of frames detect blowing
-    return positiveCount >= (SMOOTHING_FRAMES / 3.0);  // More lenient (1/3 instead of 1/2)
-}
 bool CoreState::LoadGame(const retro_game_info& game) {
     if (string_is_empty(game.path)) {
         throw std::runtime_error("No game path provided");
@@ -398,7 +301,7 @@ void CoreState::Run()
     int samplesRead = _microphoneInterface.read_mic(_microphone, samples.data(), samples.size());
 
     if (samplesRead > 0) {
-        bool isBlowing = IsBlowing(std::span(samples.data(), samplesRead));
+        bool isBlowing = _blowDetector.IsBlowing(std::span(samples.data(), samplesRead));
         retro_message_ext message {
             .msg = isBlowing ? "Blowing detected" : "No blowing",
             .duration = 20,

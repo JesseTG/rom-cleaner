@@ -35,6 +35,8 @@ add_library(romcleaner_libretro MODULE
     constants.hpp
     particles.cpp
     particles.hpp
+    blow.cpp
+    blow.hpp
 )
 
 add_subdirectory(assets)
