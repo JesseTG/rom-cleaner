@@ -2,7 +2,6 @@
 
 #include <array>
 #include <cstddef>
-#include <cstring>
 #include <kiss_fft.h>
 #include <memory>
 
@@ -12,12 +11,14 @@
 #include <retro_assert.h>
 #include <span>
 #include <audio/audio_mixer.h>
-#include <audio/conversion/float_to_s16.h>
 #include <file/file_path.h>
 #include <string/stdstring.h>
 
 #include "blow.hpp"
+#include "cart.hpp"
 #include "constants.hpp"
+#include "particles.hpp"
+
 using std::array;
 
 namespace
@@ -69,16 +70,19 @@ struct CoreState
 private:
     audio_mixer_sound_t* _fanfareSound = nullptr;
     audio_mixer_voice_t* _fanfareVoice = nullptr;
-    retro_microphone_interface _microphoneInterface;
+    retro_microphone_interface _microphoneInterface {};
     retro_microphone* _microphone = nullptr;
     retro_microphone_params_t _actualMicParams {};
-    double _dustiness = 100.0;
+    std::unique_ptr<ParticleSystem> _particles = nullptr;
+    std::unique_ptr<Cart> _cart;
     bool _micInitialized = false;
     BlowDetector _blowDetector {};
     pntr_image* _framebuffer = nullptr;
     pntr_image* _gradientBg = nullptr;
 
     bool InitMicrophone();
+    void Update();
+    void Render();
 };
 
 namespace {
@@ -241,8 +245,6 @@ RETRO_API void retro_run()
     Core.Run();
 }
 
-
-
 bool CoreState::LoadGame(const retro_game_info& game) {
     if (string_is_empty(game.path)) {
         throw std::runtime_error("No game path provided");
@@ -258,7 +260,8 @@ bool CoreState::LoadGame(const retro_game_info& game) {
     std::string_view extension = path_get_extension(game.path);
 
     if (extension == "sfc" || extension == "smc") {
-        // TODO: Load the SNES cart image
+        auto data = b::embed<"png/snes.png">();
+        _cart = std::make_unique<Cart>(std::span{(const uint8_t*)data.data(), data.size()});
     }
 
     return true;
@@ -297,7 +300,7 @@ void CoreState::Run()
 
     _input_poll();
 
-    std::array<int16_t, SAMPLES_PER_FRAME> samples;
+    std::array<int16_t, SAMPLES_PER_FRAME> samples {};
     int samplesRead = _microphoneInterface.read_mic(_microphone, samples.data(), samples.size());
 
     if (samplesRead > 0) {
@@ -313,7 +316,34 @@ void CoreState::Run()
         _environment(RETRO_ENVIRONMENT_SET_MESSAGE_EXT, &message);
     }
 
+    Update();
+}
+
+void CoreState::Update() {
+    if (_cart) {
+        _cart->Update();
+    }
+
+    if (_particles) {
+        _particles->Update(TIME_STEP);
+    }
+}
+
+void CoreState::Render() {
     pntr_draw_image(_framebuffer, _gradientBg, 0, 0);
+
+    if (_cart) {
+        _cart->Draw(*_framebuffer);
+        // TODO: Move the cart in from the top
+        // TODO: Shake the cart as the player blows into it
+        // TODO: Emit dust from the cart as the player blows into it
+        // TODO: Sparkle once the cart is dust-free
+    }
+
+    if (_particles) {
+        _particles->Draw(*_framebuffer);
+    }
+
     _video_refresh(_framebuffer->data, SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_WIDTH * sizeof(pntr_color));
     //_audio_sample_batch(outbuffer.data(), outbuffer.size() / 2);
 }
