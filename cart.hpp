@@ -1,0 +1,43 @@
+//
+// Created by Jesse on 3/18/2025.
+//
+
+#ifndef CART_HPP
+#define CART_HPP
+
+#include <cstdint>
+#include <span>
+#include <pntr.h>
+
+class Cart {
+public:
+    Cart(std::span<const uint8_t> image) noexcept;
+    ~Cart();
+    Cart(const Cart&) = delete;
+    Cart& operator=(const Cart&) = delete;
+    Cart(Cart&&) noexcept;
+    Cart& operator=(Cart&&) noexcept;
+
+    void Update();
+    void Draw(pntr_image& framebuffer);
+
+    void SetPosition(int x, int y) {
+        _position.x = x;
+        _position.y = y;
+    }
+
+    void SetPosition(pntr_vector position) {
+        _position = position;
+    }
+
+    [[nodiscard]] pntr_vector GetPosition() const {
+        return _position;
+    }
+
+private:
+    double _dustiness = 1.0f;
+    pntr_image* _image = nullptr;
+    pntr_vector _position {};
+};
+
+#endif //CART_HPP

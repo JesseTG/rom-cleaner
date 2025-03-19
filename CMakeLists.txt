@@ -29,6 +29,8 @@ include(cmake/libretro-common.cmake)
 
 add_library(romcleaner_libretro MODULE
     libretro.cpp
+    cart.cpp
+    cart.hpp
     pntr.c
     constants.hpp
     particles.cpp
