@@ -34,6 +34,10 @@ public:
         return _position;
     }
 
+    [[nodiscard]] pntr_vector GetSize() const {
+        return { _image->width, _image->height };
+    }
+
 private:
     double _dustiness = 1.0f;
     pntr_image* _image = nullptr;

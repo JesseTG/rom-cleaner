@@ -278,6 +278,9 @@ bool CoreState::LoadGame(const retro_game_info& game) {
         return false;
     }
 
+    // TODO: Initialize the cart above the screen and ease it into the center
+    _cart->SetPosition(SCREEN_WIDTH / 2 - _cart->GetSize().x / 2, SCREEN_HEIGHT / 2 - _cart->GetSize().y / 2);
+
     return true;
 }
 
