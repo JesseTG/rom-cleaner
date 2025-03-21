@@ -97,7 +97,9 @@ void ParticleSystem::EmitParticle(double max) {
 
 void ParticleSystem::Update(double dt) {
     // Emit new particles based on emission rate
-    EmitParticle(_args.spawnRate * dt);
+    if (_spawning) {
+        EmitParticle(_args.spawnRate * dt);
+    }
 
     for (Particle& p : _particles) {
         if (p.alive) {

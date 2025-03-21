@@ -329,11 +329,17 @@ void CoreState::Run()
 
     _input_poll();
 
+    Update();
+    Render();
+}
+
+void CoreState::Update() {
     std::array<int16_t, SAMPLES_PER_FRAME> samples {};
     int samplesRead = _microphoneInterface.read_mic(_microphone, samples.data(), samples.size());
 
+    bool isBlowing = false;
     if (samplesRead > 0) {
-        bool isBlowing = _blowDetector.IsBlowing(std::span(samples.data(), samplesRead));
+        isBlowing = _blowDetector.IsBlowing(std::span(samples.data(), samplesRead));
         retro_message_ext message {
             .msg = isBlowing ? "Blowing detected" : "No blowing",
             .duration = 20,
@@ -345,16 +351,12 @@ void CoreState::Run()
         _environment(RETRO_ENVIRONMENT_SET_MESSAGE_EXT, &message);
     }
 
-    Update();
-    Render();
-}
-
-void CoreState::Update() {
     if (_cart) {
         _cart->Update();
     }
 
     if (_particles) {
+        _particles->SetSpawning(isBlowing);
         _particles->Update(TIME_STEP);
     }
 }
