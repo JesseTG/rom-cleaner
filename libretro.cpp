@@ -281,6 +281,7 @@ bool CoreState::LoadGame(const retro_game_info& game) {
     // TODO: Initialize the cart above the screen and ease it into the center
     pntr_vector cartSize = _cart->GetSize();
     _cart->SetPosition(SCREEN_WIDTH / 2 - cartSize.x / 2, SCREEN_HEIGHT / 2 - cartSize.y / 2);
+    pntr_vector cartPos = _cart->GetPosition();
     _particles = std::make_unique<ParticleSystem>(
         b::embed<"dust00.png">(),
         ParticleSystemArgs {
@@ -288,7 +289,7 @@ bool CoreState::LoadGame(const retro_game_info& game) {
             .spawnRate = 1,
             .baseTimeToLive = 1.0,
             .baseVelocity = { 0, 200 },
-            .spawnArea = { SCREEN_WIDTH / 2 - _cart->GetSize().x / 2, SCREEN_HEIGHT / 2 - _cart->GetSize().y / 2, _cart->GetSize().x, _cart->GetSize().y },
+            .spawnArea = { cartPos.x, cartPos.y + cartSize.y, _cart->GetSize().x, 4 },
         }
     );
 
