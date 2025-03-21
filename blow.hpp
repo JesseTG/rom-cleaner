@@ -5,7 +5,9 @@
 #include <kiss_fft.h>
 #include <span>
 
-static constexpr int RMS_THRESHOLD = 100;  // Further lowered threshold
+#include "constants.hpp"
+
+static constexpr int RMS_THRESHOLD = 80;  // Further lowered threshold
 static constexpr float BLOW_RATIO = 0.55f; // More lenient ratio
 static constexpr int SMOOTHING_FRAMES = 6;
 static constexpr int LOW_FREQ_LIMIT = 600;  // Expanded range
@@ -28,4 +30,6 @@ private:
     std::array<bool, SMOOTHING_FRAMES> _detectionHistory = {};
     std::array<double, ADAPTIVE_WINDOW> _backgroundLevels = {};
     size_t _bgIndex = 0;
+    std::array<double, SAMPLES_PER_FRAME/2> _bgSpectrum {};
+    int _spectrumUpdateCounter = 0;
 };
