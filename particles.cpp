@@ -17,7 +17,9 @@ ParticleSystem::ParticleSystem(const b::EmbedInternal::EmbeddedFile& file, const
 
 ParticleSystem::ParticleSystem(std::span<const uint8_t> image, const ParticleSystemArgs& args) noexcept :
     _image(pntr_load_image_from_memory(PNTR_IMAGE_TYPE_PNG, image.data(), image.size())),
-    _args(args)
+    _args(args),
+    _randomX(args.spawnArea.x, args.spawnArea.x + args.spawnArea.width),
+    _randomY(args.spawnArea.y, args.spawnArea.y + args.spawnArea.height)
 {
     retro_assert(_image != nullptr);
 
@@ -61,11 +63,15 @@ ParticleSystem::~ParticleSystem() noexcept {
 
 void ParticleSystem::SetSpawnArea(pntr_rectangle area) noexcept {
     _args.spawnArea = area;
-    _randomX = std::uniform_int_distribution(area.x, area.x + area.width);
-    _randomY = std::uniform_int_distribution(area.y, area.y + area.height);
+    UpdateSpawnArea();
 }
 
-void ParticleSystem::EmitParticle(size_t max) {
+void ParticleSystem::UpdateSpawnArea() {
+    _randomX = std::uniform_int_distribution(_args.spawnArea.x, _args.spawnArea.x + _args.spawnArea.width);
+    _randomY = std::uniform_int_distribution(_args.spawnArea.y, _args.spawnArea.y + _args.spawnArea.height);
+}
+
+void ParticleSystem::EmitParticle(double max) {
     // Find an inactive particle
     size_t particlesSpawned = 0;
     for (Particle& p : _particles) {

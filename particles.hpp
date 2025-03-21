@@ -38,6 +38,8 @@ public:
     void SetSpawnArea(pntr_rectangle area) noexcept;
 
     [[nodiscard]] pntr_rectangle GetSpawnArea() const noexcept { return _args.spawnArea; }
+    void SetSpawning(bool spawning) noexcept { _spawning = spawning; }
+    [[nodiscard]] bool IsSpawning() const noexcept { return _spawning; }
 
 private:
     pntr_image* _image = nullptr;
@@ -46,6 +48,8 @@ private:
     std::default_random_engine _rng {std::random_device{}()};
     std::uniform_int_distribution<> _randomX;
     std::uniform_int_distribution<> _randomY;
+    bool _spawning = false;
 
-    void EmitParticle(size_t max);
+    void EmitParticle(double max);
+    void UpdateSpawnArea();
 };
