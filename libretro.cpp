@@ -331,6 +331,7 @@ void CoreState::Run()
     }
 
     Update();
+    Render();
 }
 
 void CoreState::Update() {
