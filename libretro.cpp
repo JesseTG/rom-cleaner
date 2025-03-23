@@ -42,6 +42,8 @@ struct CoreState
         _gradientBg = pntr_new_image(SCREEN_WIDTH, SCREEN_HEIGHT);
         pntr_draw_rectangle_gradient(_gradientBg, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, PNTR_BLUE, PNTR_BLUE, PNTR_SKYBLUE, PNTR_SKYBLUE);
 
+        // Initialize dust level to maximum (100%)
+        _dustLevel = 100.0f;
     }
 
     ~CoreState() noexcept
@@ -79,10 +81,14 @@ private:
     BlowDetector _blowDetector {};
     pntr_image* _framebuffer = nullptr;
     pntr_image* _gradientBg = nullptr;
+    float _dustLevel = 100.0f;  // Track dust level from 0-100
+    float _blowStrength = 0.0f; // Track how strongly player is blowing
 
     bool InitMicrophone();
     void Update();
     void Render();
+    void UpdateDustLevel(bool isBlowing);
+    void DisplayDustStatus();
 };
 
 namespace {
@@ -340,15 +346,20 @@ void CoreState::Update() {
     bool isBlowing = false;
     if (samplesRead > 0) {
         isBlowing = _blowDetector.IsBlowing(std::span(samples.data(), samplesRead));
-        retro_message_ext message {
-            .msg = isBlowing ? "Blowing detected" : "No blowing",
-            .duration = 20,
-            .level = RETRO_LOG_INFO,
-            .target = RETRO_MESSAGE_TARGET_OSD,
-            .type = RETRO_MESSAGE_TYPE_STATUS,
-            .progress = 75,
-        };
-        _environment(RETRO_ENVIRONMENT_SET_MESSAGE_EXT, &message);
+        
+        // Instead of showing debug message, update dust level based on blowing
+        if (isBlowing) {
+            // Optionally, get blow intensity from detector if implemented
+            _blowStrength = 1.0f; // Default value if intensity not available
+        } else {
+            _blowStrength = 0.0f;
+        }
+        
+        // Update dust level based on blowing
+        UpdateDustLevel(isBlowing);
+        
+        // Display current dust status to player
+        DisplayDustStatus();
     }
 
     if (_cart) {
@@ -356,8 +367,61 @@ void CoreState::Update() {
     }
 
     if (_particles) {
-        _particles->SetSpawning(isBlowing);
+        // Set particle emission based on blow strength and remaining dust
+        _particles->SetSpawning(isBlowing && _dustLevel > 0);
+        
+        // Adjust particle emission rate based on dust level
+        if (_particles && isBlowing && _dustLevel > 0) {
+            // More dust = more particles when blowing
+            float emissionRate = (_dustLevel / 100.0f) * 1.0f; // Scale between 0 and 1
+            // Note: You might need to modify ParticleSystem to support dynamic emission rate
+        }
+        
         _particles->Update(TIME_STEP);
+    }
+}
+
+// New method to update dust level
+void CoreState::UpdateDustLevel(bool isBlowing) {
+    if (isBlowing && _dustLevel > 0) {
+        // Decrease dust level when blowing, with a minimum of 0
+        constexpr float decreaseRate = 5.0f; // Dust decrease per second when blowing
+        _dustLevel -= decreaseRate;
+        
+        // Increase particle emission when dust is higher
+        if (_particles) {
+            // Implementation depends on your ParticleSystem class capabilities
+        }
+    }
+}
+
+// New method to display dust status
+void CoreState::DisplayDustStatus() {
+    // Format message to show dust level
+    char message[64];
+    snprintf(message, sizeof(message), "Dust: %d%%", static_cast<int>(_dustLevel));
+
+    retro_message_ext dustMessage {
+        .msg = message,
+        .duration = 60, // Show continuously with short duration
+        .level = RETRO_LOG_INFO,
+        .target = RETRO_MESSAGE_TARGET_OSD,
+        .type = RETRO_MESSAGE_TYPE_PROGRESS,
+        .progress = static_cast<int8_t>(_dustLevel), // Use dust level for progress bar
+    };
+    _environment(RETRO_ENVIRONMENT_SET_MESSAGE_EXT, &dustMessage);
+    
+    // Show special message when cartridge is clean
+    if (_dustLevel <= 0) {
+        retro_message_ext cleanMessage {
+            .msg = "Your ROM is now clean!",
+            .duration = 3000,
+            .level = RETRO_LOG_INFO,
+            .target = RETRO_MESSAGE_TARGET_OSD,
+            .type = RETRO_MESSAGE_TYPE_PROGRESS,
+            .progress = -1,
+        };
+        _environment(RETRO_ENVIRONMENT_SET_MESSAGE_EXT, &cleanMessage);
     }
 }
 
