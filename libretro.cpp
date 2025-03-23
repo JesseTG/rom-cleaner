@@ -323,10 +323,20 @@ bool CoreState::LoadGame(const retro_game_info& game) {
     _cartAnimationTime = 0.0f;
     _gameState = GameState::CART_ENTERING;
 
-    // Initialize particles but don't emit them yet
+    // Initialize particles with multiple dust images
     pntr_vector cartPos = _cart->GetPosition();
-    _particles = std::make_unique<ParticleSystem>(
+    
+    std::array<const b::EmbedInternal::EmbeddedFile, 6> dustImages = {
         b::embed<"dust00.png">(),
+        b::embed<"dust01.png">(),
+        b::embed<"dust02.png">(),
+        b::embed<"dust03.png">(),
+        b::embed<"dust04.png">(),
+        b::embed<"dust05.png">()
+    };
+    
+    _particles = std::make_unique<ParticleSystem>(
+        dustImages,
         ParticleSystemArgs {
             .maxParticles = 100,
             .spawnRate = 1,
