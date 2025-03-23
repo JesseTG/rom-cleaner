@@ -39,7 +39,6 @@ public:
     }
 
 private:
-    double _dustiness = 1.0f;
     pntr_image* _image = nullptr;
     pntr_vector _position {};
 };
