@@ -283,8 +283,7 @@ bool CoreState::LoadGame(const retro_game_info& game) {
     std::string_view extension = path_get_extension(game.path);
 
     if (extension == "sfc" || extension == "smc") {
-        auto data = b::embed<"png/snes.png">();
-        _cart = std::make_unique<Cart>(std::span{(const uint8_t*)data.data(), data.size()});
+        _cart = std::make_unique<Cart>(b::embed<"png/snes.png">());
     }
 
     if (!_cart) {

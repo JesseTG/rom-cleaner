@@ -14,6 +14,30 @@ Cart::Cart(std::span<const uint8_t> image) noexcept :
     retro_assert(_image != nullptr);
 }
 
+Cart::Cart(const b::EmbedInternal::EmbeddedFile& file) noexcept :
+    Cart(std::span{reinterpret_cast<const uint8_t*>(file.data()), file.size()})
+{
+}
+
+Cart::Cart(Cart&& other) noexcept :
+    _image(other._image),
+    _position(other._position)
+{
+    other._image = nullptr;
+}
+
+Cart& Cart::operator=(Cart&& other) noexcept {
+    if (this != &other) {
+        if (_image) {
+            pntr_unload_image(_image);
+        }
+        _image = other._image;
+        _position = other._position;
+        other._image = nullptr;
+    }
+    return *this;
+}
+
 Cart::~Cart() {
     pntr_unload_image(_image);
 }
