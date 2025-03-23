@@ -85,6 +85,7 @@ private:
     retro_microphone* _microphone = nullptr;
     retro_microphone_params_t _actualMicParams {};
     std::unique_ptr<ParticleSystem> _particles = nullptr;
+    std::unique_ptr<ParticleSystem> _sparkles = nullptr;  // Sparkle effect particles
     std::unique_ptr<Cart> _cart;
     bool _micInitialized = false;
     BlowDetector _blowDetector {};
@@ -418,13 +419,39 @@ void CoreState::Update() {
         if (_particles) {
             // Set particle emission based on blow strength and remaining dust
             _particles->SetSpawning(isBlowing && _dustLevel > 0);
-            
+
             // Adjust particle emission rate based on dust level
             if (_particles && isBlowing && _dustLevel > 0) {
                 // More dust = more particles when blowing
                 float emissionRate = (_dustLevel / 100.0f) * 1.0f; // Scale between 0 and 1
                 // Note: You might need to modify ParticleSystem to support dynamic emission rate
             }
+        }
+
+        // If dust level reaches zero and we haven't created sparkles yet, create them
+        if (_dustLevel <= 0 && !_sparkles) {
+            // Create sparkle particle system
+            std::array<const b::EmbedInternal::EmbeddedFile, 3> sparkleImages = {
+                b::embed<"sparkle00.png">(),
+                b::embed<"sparkle01.png">(),
+                b::embed<"sparkle02.png">()
+            };
+
+            pntr_vector cartPos = _cart->GetPosition();
+            pntr_vector cartSize = _cart->GetSize();
+
+            _sparkles = std::make_unique<ParticleSystem>(
+                sparkleImages,
+                ParticleSystemArgs {
+                    .maxParticles = 40,
+                    .spawnRate = 5,           // Spawn 5 sparkles per second
+                    .baseTimeToLive = 0.5f,   // Short-lived sparkles
+                    .baseVelocity = { 0, 0 }, // Sparkles don't move
+                    .spawnArea = { cartPos.x, cartPos.y, cartSize.x, cartSize.y },
+                }
+            );
+
+            _sparkles->SetSpawning(true);
         }
     }
 
@@ -435,6 +462,11 @@ void CoreState::Update() {
     // Always update particles for continuous animation
     if (_particles) {
         _particles->Update(TIME_STEP);
+    }
+    
+    // Update sparkles if they exist
+    if (_sparkles) {
+        _sparkles->Update(TIME_STEP);
     }
 }
 
@@ -475,7 +507,7 @@ void CoreState::UpdateCartAnimation() {
 void CoreState::UpdateDustLevel(bool isBlowing) {
     if (isBlowing && _dustLevel > 0) {
         // Decrease dust level when blowing, with a minimum of 0
-        constexpr float decreaseRate = 50.0f; // Dust decrease per second when blowing
+        constexpr float decreaseRate = 75.0f; // Dust decrease per second when blowing
         _dustLevel -= decreaseRate * TIME_STEP;
 
         // TODO: Increase particle emission when dust is higher
@@ -517,11 +549,15 @@ void CoreState::Render() {
     if (_cart) {
         _cart->Draw(*_framebuffer);
         // TODO: Shake the cart as the player blows into it
-        // TODO: Sparkle once the cart is dust-free
     }
 
     if (_particles) {
         _particles->Draw(*_framebuffer);
+    }
+    
+    // Draw sparkles on top of everything if they exist
+    if (_sparkles) {
+        _sparkles->Draw(*_framebuffer);
     }
 
     _video_refresh(_framebuffer->data, SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_WIDTH * sizeof(pntr_color));
