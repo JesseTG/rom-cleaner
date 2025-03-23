@@ -447,17 +447,6 @@ void CoreState::UpdateCartAnimation() {
         // Animation complete, set final position
         _cart->SetPosition(_cartTargetPosition);
         _gameState = GameState::CART_READY;
-        
-        // Show a message when cart is ready
-        retro_message_ext message {
-            .msg = "Blow into the microphone to clean your ROM!",
-            .duration = 3000,
-            .level = RETRO_LOG_INFO,
-            .target = RETRO_MESSAGE_TARGET_OSD,
-            .type = RETRO_MESSAGE_TYPE_NOTIFICATION,
-            .progress = 0,
-        };
-        _environment(RETRO_ENVIRONMENT_SET_MESSAGE_EXT, &message);
     } else {
         // Calculate eased position
         float progress = _cartAnimationTime / _cartAnimationDuration;
@@ -499,12 +488,8 @@ void CoreState::UpdateDustLevel(bool isBlowing) {
 
 // New method to display dust status
 void CoreState::DisplayDustStatus() {
-    // Format message to show dust level
-    char message[64];
-    snprintf(message, sizeof(message), "Dust: %d%%", static_cast<int>(_dustLevel));
-
     retro_message_ext dustMessage {
-        .msg = message,
+        .msg = "Blow into the microphone to clean your ROM!",
         .duration = 60, // Show continuously with short duration
         .level = RETRO_LOG_INFO,
         .target = RETRO_MESSAGE_TARGET_OSD,
