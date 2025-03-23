@@ -475,10 +475,10 @@ void CoreState::UpdateCartAnimation() {
 void CoreState::UpdateDustLevel(bool isBlowing) {
     if (isBlowing && _dustLevel > 0) {
         // Decrease dust level when blowing, with a minimum of 0
-        constexpr float decreaseRate = 25.0f; // Dust decrease per second when blowing
+        constexpr float decreaseRate = 50.0f; // Dust decrease per second when blowing
         _dustLevel -= decreaseRate * TIME_STEP;
-        
-        // Increase particle emission when dust is higher
+
+        // TODO: Increase particle emission when dust is higher
         if (_particles) {
             // Implementation depends on your ParticleSystem class capabilities
         }
