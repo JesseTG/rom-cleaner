@@ -32,6 +32,12 @@ namespace
     retro_log_printf_t _log = nullptr;
 }
 
+// Define game states
+enum class GameState {
+    CART_ENTERING,  // Cart is animating into position
+    CART_READY      // Cart is in position, ready for cleaning
+};
+
 struct CoreState
 {
     CoreState() noexcept
@@ -44,6 +50,9 @@ struct CoreState
 
         // Initialize dust level to maximum (100%)
         _dustLevel = 100.0f;
+        
+        // Set initial game state to cart entering
+        _gameState = GameState::CART_ENTERING;
     }
 
     ~CoreState() noexcept
@@ -83,12 +92,20 @@ private:
     pntr_image* _gradientBg = nullptr;
     float _dustLevel = 100.0f;  // Track dust level from 0-100
     float _blowStrength = 0.0f; // Track how strongly player is blowing
+    
+    // Animation and state management
+    GameState _gameState = GameState::CART_ENTERING;
+    float _cartAnimationTime = 0.0f;
+    float _cartAnimationDuration = 1.5f; // Duration of entrance animation in seconds
+    pntr_vector _cartTargetPosition {}; // Target position for cart (center of screen)
+    pntr_vector _cartStartPosition {};  // Starting position for cart (above screen)
 
     bool InitMicrophone();
     void Update();
     void Render();
     void UpdateDustLevel(bool isBlowing);
     void DisplayDustStatus();
+    void UpdateCartAnimation();
 };
 
 namespace {
@@ -284,9 +301,29 @@ bool CoreState::LoadGame(const retro_game_info& game) {
         return false;
     }
 
-    // TODO: Initialize the cart above the screen and ease it into the center
+    // Calculate cart dimensions and positions
     pntr_vector cartSize = _cart->GetSize();
-    _cart->SetPosition(SCREEN_WIDTH / 2 - cartSize.x / 2, SCREEN_HEIGHT / 2 - cartSize.y / 2);
+    
+    // Set target position (center of screen)
+    _cartTargetPosition = {
+        SCREEN_WIDTH / 2 - cartSize.x / 2,
+        SCREEN_HEIGHT / 2 - cartSize.y / 2
+    };
+    
+    // Set start position (above screen)
+    _cartStartPosition = {
+        _cartTargetPosition.x,
+        -cartSize.y  // Start completely above the screen
+    };
+    
+    // Initialize cart position to starting position
+    _cart->SetPosition(_cartStartPosition);
+    
+    // Reset animation timer
+    _cartAnimationTime = 0.0f;
+    _gameState = GameState::CART_ENTERING;
+
+    // Initialize particles but don't emit them yet
     pntr_vector cartPos = _cart->GetPosition();
     _particles = std::make_unique<ParticleSystem>(
         b::embed<"dust00.png">(),
@@ -329,7 +366,7 @@ bool CoreState::InitMicrophone() {
 
 void CoreState::Run()
 {
-    if (!_micInitialized) {
+    if (!_micInitialized && _gameState == GameState::CART_READY) {
         _micInitialized = InitMicrophone();
     }
 
@@ -340,44 +377,99 @@ void CoreState::Run()
 }
 
 void CoreState::Update() {
-    std::array<int16_t, SAMPLES_PER_FRAME> samples {};
-    int samplesRead = _microphoneInterface.read_mic(_microphone, samples.data(), samples.size());
+    // Handle cart entry animation
+    if (_gameState == GameState::CART_ENTERING) {
+        UpdateCartAnimation();
+    }
 
-    bool isBlowing = false;
-    if (samplesRead > 0) {
-        isBlowing = _blowDetector.IsBlowing(std::span(samples.data(), samplesRead));
-        
-        // Instead of showing debug message, update dust level based on blowing
-        if (isBlowing) {
-            // Optionally, get blow intensity from detector if implemented
-            _blowStrength = 1.0f; // Default value if intensity not available
-        } else {
-            _blowStrength = 0.0f;
+    // Only process microphone input when cart is in position
+    if (_gameState == GameState::CART_READY) {
+        std::array<int16_t, SAMPLES_PER_FRAME> samples {};
+        int samplesRead = _microphoneInterface.read_mic(_microphone, samples.data(), samples.size());
+
+        bool isBlowing = false;
+        if (samplesRead > 0) {
+            isBlowing = _blowDetector.IsBlowing(std::span(samples.data(), samplesRead));
+            
+            // Instead of showing debug message, update dust level based on blowing
+            if (isBlowing) {
+                // Optionally, get blow intensity from detector if implemented
+                _blowStrength = 1.0f; // Default value if intensity not available
+            } else {
+                _blowStrength = 0.0f;
+            }
+            
+            // Update dust level based on blowing
+            UpdateDustLevel(isBlowing);
+            
+            // Display current dust status to player
+            DisplayDustStatus();
         }
-        
-        // Update dust level based on blowing
-        UpdateDustLevel(isBlowing);
-        
-        // Display current dust status to player
-        DisplayDustStatus();
+
+        if (_particles) {
+            // Set particle emission based on blow strength and remaining dust
+            _particles->SetSpawning(isBlowing && _dustLevel > 0);
+            
+            // Adjust particle emission rate based on dust level
+            if (_particles && isBlowing && _dustLevel > 0) {
+                // More dust = more particles when blowing
+                float emissionRate = (_dustLevel / 100.0f) * 1.0f; // Scale between 0 and 1
+                // Note: You might need to modify ParticleSystem to support dynamic emission rate
+            }
+        }
     }
 
     if (_cart) {
         _cart->Update();
     }
-
+    
+    // Always update particles for continuous animation
     if (_particles) {
-        // Set particle emission based on blow strength and remaining dust
-        _particles->SetSpawning(isBlowing && _dustLevel > 0);
-        
-        // Adjust particle emission rate based on dust level
-        if (_particles && isBlowing && _dustLevel > 0) {
-            // More dust = more particles when blowing
-            float emissionRate = (_dustLevel / 100.0f) * 1.0f; // Scale between 0 and 1
-            // Note: You might need to modify ParticleSystem to support dynamic emission rate
-        }
-        
         _particles->Update(TIME_STEP);
+    }
+}
+
+// New method to handle cart animation
+void CoreState::UpdateCartAnimation() {
+    _cartAnimationTime += TIME_STEP;
+    
+    if (_cartAnimationTime >= _cartAnimationDuration) {
+        // Animation complete, set final position
+        _cart->SetPosition(_cartTargetPosition);
+        _gameState = GameState::CART_READY;
+        
+        // Show a message when cart is ready
+        retro_message_ext message {
+            .msg = "Blow into the microphone to clean your ROM!",
+            .duration = 3000,
+            .level = RETRO_LOG_INFO,
+            .target = RETRO_MESSAGE_TARGET_OSD,
+            .type = RETRO_MESSAGE_TYPE_NOTIFICATION,
+            .progress = 0,
+        };
+        _environment(RETRO_ENVIRONMENT_SET_MESSAGE_EXT, &message);
+    } else {
+        // Calculate eased position
+        float progress = _cartAnimationTime / _cartAnimationDuration;
+        
+        // Apply easing function (ease-out cubic)
+        float easedProgress = 1.0f - (1.0f - progress) * (1.0f - progress) * (1.0f - progress);
+        
+        // Interpolate position
+        int x = _cartStartPosition.x + (int)(easedProgress * (_cartTargetPosition.x - _cartStartPosition.x));
+        int y = _cartStartPosition.y + (int)(easedProgress * (_cartTargetPosition.y - _cartStartPosition.y));
+        
+        _cart->SetPosition(x, y);
+        
+        // Update particle spawn area to follow cart
+        if (_particles) {
+            pntr_vector cartPos = _cart->GetPosition();
+            pntr_vector cartSize = _cart->GetSize();
+            _particles->SetSpawnArea({
+                cartPos.x, cartPos.y + cartSize.y, 
+                cartSize.x, 4
+            });
+        }
     }
 }
 
@@ -430,9 +522,7 @@ void CoreState::Render() {
 
     if (_cart) {
         _cart->Draw(*_framebuffer);
-        // TODO: Move the cart in from the top
         // TODO: Shake the cart as the player blows into it
-        // TODO: Emit dust from the cart as the player blows into it
         // TODO: Sparkle once the cart is dust-free
     }
 
@@ -443,3 +533,4 @@ void CoreState::Render() {
     _video_refresh(_framebuffer->data, SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_WIDTH * sizeof(pntr_color));
     //_audio_sample_batch(outbuffer.data(), outbuffer.size() / 2);
 }
+
