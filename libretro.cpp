@@ -11,6 +11,7 @@
 #include <retro_assert.h>
 #include <span>
 #include <audio/audio_mixer.h>
+#include <audio/conversion/float_to_s16.h>
 #include <file/file_path.h>
 #include <string/stdstring.h>
 
@@ -48,11 +49,16 @@ struct CoreState
         _gradientBg = pntr_new_image(SCREEN_WIDTH, SCREEN_HEIGHT);
         pntr_draw_rectangle_gradient(_gradientBg, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, PNTR_BLUE, PNTR_BLUE, PNTR_SKYBLUE, PNTR_SKYBLUE);
 
-        // Initialize dust level to maximum (100%)
-        _dustLevel = 100.0f;
-        
-        // Set initial game state to cart entering
-        _gameState = GameState::CART_ENTERING;
+        audio_mixer_init(SAMPLE_RATE);
+
+        const auto& fanfareWav = b::embed<"fanfare.wav">();
+        _fanfareSound = audio_mixer_load_wav(
+            (void*)fanfareWav.data(),
+            fanfareWav.size(),
+            "sinc",
+            RESAMPLER_QUALITY_DONTCARE
+        );
+        retro_assert(_fanfareSound != nullptr);
     }
 
     ~CoreState() noexcept
@@ -62,6 +68,14 @@ struct CoreState
 
         pntr_unload_image(_gradientBg);
         _gradientBg = nullptr;
+
+        audio_mixer_stop(_fanfareVoice);
+        _fanfareVoice = nullptr;
+
+        audio_mixer_destroy(_fanfareSound);
+        _fanfareSound = nullptr;
+
+        audio_mixer_done();
 
         if (_microphone) {
             _microphoneInterface.set_mic_state(_microphone, false);
@@ -452,6 +466,9 @@ void CoreState::Update() {
             );
 
             _sparkles->SetSpawning(true);
+
+            _fanfareVoice = audio_mixer_play(_fanfareSound, false, 1.0f, "sinc", RESAMPLER_QUALITY_DONTCARE, nullptr);
+            retro_assert(_fanfareVoice != nullptr);
         }
     }
 
@@ -507,7 +524,7 @@ void CoreState::UpdateCartAnimation() {
 void CoreState::UpdateDustLevel(bool isBlowing) {
     if (isBlowing && _dustLevel > 0) {
         // Decrease dust level when blowing, with a minimum of 0
-        constexpr float decreaseRate = 75.0f; // Dust decrease per second when blowing
+        constexpr float decreaseRate = 85.0f; // Dust decrease per second when blowing
         _dustLevel -= decreaseRate * TIME_STEP;
 
         // TODO: Increase particle emission when dust is higher
@@ -560,7 +577,13 @@ void CoreState::Render() {
         _sparkles->Draw(*_framebuffer);
     }
 
+    array<float, SAMPLE_RATE * 2 / 60> buffer {};
+    array<int16_t, SAMPLE_RATE * 2 / 60> outbuffer {};
+
+    audio_mixer_mix(buffer.data(), buffer.size() / 2, 1.0f, false);
+    convert_float_to_s16(outbuffer.data(), buffer.data(), buffer.size());
+
     _video_refresh(_framebuffer->data, SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_WIDTH * sizeof(pntr_color));
-    //_audio_sample_batch(outbuffer.data(), outbuffer.size() / 2);
+    _audio_sample_batch(outbuffer.data(), outbuffer.size() / 2);
 }
 
