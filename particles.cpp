@@ -1,7 +1,3 @@
-//
-// Created by Jesse on 3/18/2025.
-//
-
 #include "particles.hpp"
 #include "constants.hpp"
 
@@ -126,12 +122,36 @@ void ParticleSystem::EmitParticle(double max) {
             break;
 
         if (!p.alive) {
+            // Set position
             p.position.x = _randomX(_rng);
             p.position.y = _randomY(_rng);
 
-            // Randomize velocity within emitter's range
-            p.velocity.x = _args.baseVelocity.x;
-            p.velocity.y = _args.baseVelocity.y;
+            // Calculate the normalized position within spawn area (0.0 = left edge, 1.0 = right edge)
+            double normalizedX = 0.5; // Default to middle
+            if (_args.spawnArea.width > 0) {
+                normalizedX = static_cast<double>(p.position.x - _args.spawnArea.x) / _args.spawnArea.width;
+            }
+            
+            // Calculate the angle offset based on position (-edgeAngleOffset at left, +edgeAngleOffset at right)
+            // Map from [0,1] to [-1,1], then multiply by the max angle offset
+            double angleOffset = -(normalizedX * 2.0 - 1.0) * _args.edgeAngleOffset;
+            
+            // Convert base velocity to speed and angle
+            double speed = std::sqrt(_args.baseVelocity.x * _args.baseVelocity.x + 
+                                    _args.baseVelocity.y * _args.baseVelocity.y);
+            
+            // Calculate base angle (assuming baseVelocity points down)
+            double baseAngle = std::atan2(_args.baseVelocity.y, _args.baseVelocity.x);
+            
+            // Apply the offset (convert from degrees to radians)
+            double finalAngle = baseAngle + angleOffset * (M_PI / 180.0);
+            
+            // Set velocity based on the calculated angle and speed
+            p.velocity.x = speed * std::cos(finalAngle);
+            p.velocity.y = speed * std::sin(finalAngle);
+            
+            // Set deceleration
+            p.deceleration = _args.deceleration;
 
             // Set lifetime
             p.timeToLive = _args.baseTimeToLive;
@@ -158,6 +178,30 @@ void ParticleSystem::Update(double dt) {
         }
 
         if (p.alive) {
+            // Apply deceleration
+            if (p.deceleration > 0) {
+                double currentSpeed = std::sqrt(p.velocity.x * p.velocity.x + p.velocity.y * p.velocity.y);
+                if (currentSpeed > 0) {
+                    // Calculate deceleration for this frame
+                    double decelAmount = p.deceleration * dt;
+                    
+                    // Calculate new speed after deceleration (ensure it doesn't go negative)
+                    double newSpeed = std::max(0.0, currentSpeed - decelAmount);
+                    
+                    // If we still have velocity, rescale the velocity vector
+                    if (newSpeed > 0 && currentSpeed > 0) {
+                        double scale = newSpeed / currentSpeed;
+                        p.velocity.x *= scale;
+                        p.velocity.y *= scale;
+                    } else {
+                        // If velocity becomes zero, stop the particle
+                        p.velocity.x = 0;
+                        p.velocity.y = 0;
+                    }
+                }
+            }
+            
+            // Update position based on velocity
             p.position.x += std::round(p.velocity.x * dt);
             p.position.y += std::round(p.velocity.y * dt);
         }

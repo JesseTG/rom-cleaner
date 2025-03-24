@@ -14,6 +14,7 @@ struct Particle {
     double timeToLive = 0.0;
     bool alive = false;
     size_t imageIndex = 0;  // Index of the image to use for this particle
+    double deceleration = 0.0; // Deceleration factor for this particle
 };
 
 struct ParticleSystemArgs {
@@ -22,6 +23,8 @@ struct ParticleSystemArgs {
     double baseTimeToLive;
     pntr_vector baseVelocity;
     pntr_rectangle spawnArea;
+    double deceleration = 0.0;      // Deceleration factor (velocity reduction per second)
+    double edgeAngleOffset = 5.0;   // Maximum angle offset at edges (in degrees)
 };
 
 class ParticleSystem {

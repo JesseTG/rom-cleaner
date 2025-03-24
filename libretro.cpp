@@ -1,5 +1,3 @@
-// MIT-licensed, see LICENSE in the root directory.
-
 #include <array>
 #include <cstddef>
 #include <kiss_fft.h>
@@ -352,11 +350,13 @@ bool CoreState::LoadGame(const retro_game_info& game) {
     _particles = std::make_unique<ParticleSystem>(
         dustImages,
         ParticleSystemArgs {
-            .maxParticles = 100,
-            .spawnRate = 1,
-            .baseTimeToLive = 1.0,
-            .baseVelocity = { 0, 200 },
+            .maxParticles = 400,
+            .spawnRate = 300,
+            .baseTimeToLive = .75,
+            .baseVelocity = { 0, 300 },
             .spawnArea = { cartPos.x, cartPos.y + cartSize.y, _cart->GetSize().x, 4 },
+            .deceleration = 300.0,  // Strong deceleration for dust (px/s²)
+            .edgeAngleOffset = 30
         }
     );
 
@@ -427,8 +427,9 @@ void CoreState::Update() {
             UpdateDustLevel(isBlowing);
             
             // Display current dust status to player
-            DisplayDustStatus();
         }
+
+        DisplayDustStatus();
 
         if (_particles) {
             // Set particle emission based on blow strength and remaining dust
@@ -538,7 +539,7 @@ void CoreState::UpdateDustLevel(bool isBlowing) {
 void CoreState::DisplayDustStatus() {
     retro_message_ext dustMessage {
         .msg = "Blow into the microphone to clean your ROM!",
-        .duration = 60, // Show continuously with short duration
+        .duration = 33, // Show continuously with short duration
         .level = RETRO_LOG_INFO,
         .target = RETRO_MESSAGE_TARGET_OSD,
         .type = RETRO_MESSAGE_TYPE_PROGRESS,
@@ -550,7 +551,7 @@ void CoreState::DisplayDustStatus() {
     if (_dustLevel <= 0) {
         retro_message_ext cleanMessage {
             .msg = "Your ROM is now clean!",
-            .duration = 3000,
+            .duration = 33,
             .level = RETRO_LOG_INFO,
             .target = RETRO_MESSAGE_TARGET_OSD,
             .type = RETRO_MESSAGE_TYPE_PROGRESS,
