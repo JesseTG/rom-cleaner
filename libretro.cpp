@@ -196,6 +196,9 @@ RETRO_API void retro_get_system_info(retro_system_info *info)
     info->block_extract = false;
     info->library_version = "0.0.0";
     info->valid_extensions = "sfc|smc|st|swc|bs|cgb|dmg|gb|gbc|sgb|a52|nes|3ds|3dsx|cart|rom|sms|bms|int|col|cv|md|mdx|smd|gen|gg|sg|gba|nds|lnx|lyx|pce|sgx|ws|wsc|vb|vboy|n64|z64|v64|vec";
+
+    // We don't actually use the ROM, so no need to load or patch anything
+    info->need_fullpath = true;
 }
 
 
