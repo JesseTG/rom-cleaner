@@ -295,7 +295,7 @@ bool CoreState::LoadGame(const retro_game_info& game) {
 
     std::string_view extension = path_get_extension(game.path);
 
-    _cart = std::make_unique<Cart>(b::embed<"png/snes.png">());
+    _cart = std::make_unique<Cart>(b::embed<"cart.png">());
 
     // Calculate cart dimensions and positions
     pntr_vector cartSize = _cart->GetSize();
