@@ -195,7 +195,7 @@ RETRO_API void retro_get_system_info(retro_system_info *info)
     info->library_name = "ROM Cleaner";
     info->block_extract = false;
     info->library_version = "0.0.0";
-    info->valid_extensions = "smc|sfc";
+    info->valid_extensions = "sfc|smc|st|swc|bs|cgb|dmg|gb|gbc|sgb|a52|nes|3ds|3dsx|cart|rom|sms|bms|int|col|cv|md|mdx|smd|gen|gg|sg|gba|nds|lnx|lyx|pce|sgx|ws|wsc|vb|vboy|n64|z64|v64|vec";
 }
 
 
@@ -295,23 +295,7 @@ bool CoreState::LoadGame(const retro_game_info& game) {
 
     std::string_view extension = path_get_extension(game.path);
 
-    if (extension == "sfc" || extension == "smc") {
-        _cart = std::make_unique<Cart>(b::embed<"png/snes.png">());
-    }
-
-    if (!_cart) {
-        // Warn the player that this game isn't supported
-        retro_message_ext message {
-            .msg = "This type of ROM isn't supported. Try another platform.",
-            .duration = 3000,
-            .level = RETRO_LOG_ERROR,
-            .target = RETRO_MESSAGE_TARGET_OSD,
-            .type = RETRO_MESSAGE_TYPE_NOTIFICATION,
-            .progress = 0,
-        };
-        _environment(RETRO_ENVIRONMENT_SET_MESSAGE_EXT, &message);
-        return false;
-    }
+    _cart = std::make_unique<Cart>(b::embed<"png/snes.png">());
 
     // Calculate cart dimensions and positions
     pntr_vector cartSize = _cart->GetSize();
