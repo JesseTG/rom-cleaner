@@ -17,10 +17,6 @@ include:
   - project: 'libretro-infrastructure/ci-templates'
     file: '/windows-cmake-mingw.yml'
 
-  # DOS
-  - project: 'libretro-infrastructure/ci-templates'
-    file: '/djgpp-static-cmake.yml'
-
   # Linux 64-bit
   - project: 'libretro-infrastructure/ci-templates'
     file: '/linux-cmake.yml'
@@ -32,10 +28,6 @@ include:
   # MacOS ARM 64-bit
   - project: 'libretro-infrastructure/ci-templates'
     file: '/osx-cmake-arm64.yml'
-
-  # MacOS PPC
-  - project: 'libretro-infrastructure/ci-templates'
-    file: '/osx-cmake-ppc.yml'
 
 
   ################################## CELLULAR ################################
@@ -50,53 +42,6 @@ include:
   # tvOS (AppleTV)
   - project: 'libretro-infrastructure/ci-templates'
     file: '/tvos-cmake.yml'
-
-  ################################ GAME CONSOLES #############################
-  # PS2
-  - project: 'libretro-infrastructure/ci-templates'
-    file: '/ps2-static-cmake.yml'
-
-  # GameCube
-  - project: 'libretro-infrastructure/ci-templates'
-    file: '/ngc-static-cmake.yml'
-
-  # PSP
-  - project: 'libretro-infrastructure/ci-templates'
-    file: '/psp-static-cmake.yml'
-
-  # PS Vita
-  - project: 'libretro-infrastructure/ci-templates'
-    file: '/vita-static-cmake.yml'
-
-  # Wii
-  - project: 'libretro-infrastructure/ci-templates'
-    file: '/wii-static-cmake.yml'
-
-  # Wii U
-  - project: 'libretro-infrastructure/ci-templates'
-    file: '/wiiu-static-cmake.yml'
-
-  # 3DS
-  - project: 'libretro-infrastructure/ci-templates'
-    file: '/ctr-static-cmake.yml'
-
-  # Switch
-  - project: 'libretro-infrastructure/ci-templates'
-    file: '/libnx-static-cmake.yml'
-
-  #################################### MISC ##################################
-  # Dingux
-  - project: 'libretro-infrastructure/ci-templates'
-    file: '/dingux-cmake.yml'
-
-  # Web
-  - project: 'libretro-infrastructure/ci-templates'
-    file: '/emscripten-static-cmake.yml'
-
-  # Orbis
-  - project: 'libretro-infrastructure/ci-templates'
-    file: '/orbis-static-cmake.yml'
-
 
 # Stages for building
 stages:
@@ -154,18 +99,6 @@ osx-arm64:
     - .libretro-osx-cmake-arm64
     - .core-defs
 
-# MacOS 64-bit
-osx-x86:
-  extends:
-    - .libretro-osx-cmake-x86
-    - .core-defs
-
-# MacOS PPC
-osx-ppc:
-  extends:
-    - .libretro-osx-cmake-ppc
-    - .core-defs
-
 ################################### CELLULAR #################################
 
 # Android ARMv7a
@@ -210,11 +143,6 @@ ios-arm64:
   variables:
     CORE_ARGS: --toolchain ./cmake/toolchain/ios.toolchain.cmake -DPLATFORM=OS64
 
-ios9:
-  extends:
-    - .libretro-ios-cmake-ios9
-    - .core-defs
-
 # tvOS
 tvos-arm64:
   extends:
@@ -222,51 +150,3 @@ tvos-arm64:
     - .core-defs
   variables:
     CORE_ARGS: --toolchain ./cmake/toolchain/ios.toolchain.cmake -DPLATFORM=TVOS
-
-################################ GAME CONSOLES ###############################
-
-# Switch
-libnx:
-  extends:
-    - .libretro-libnx-static-cmake-retroarch-master
-    - .core-defs
-
-#################################### MISC ####################################
-
-dingux-mips32:
-  extends:
-    - .libretro-dingux-cmake-mips32
-    - .core-defs
-
-dingux-odbeta-mips32:
-  extends:
-    - .libretro-dingux-odbeta-cmake-mips32
-    - .core-defs
-
-rs90-mips32:
-  extends:
-    - .libretro-rs90-odbeta-cmake-mips32
-    - .core-defs
-
-retrofw-mips32:
-  extends:
-    - .libretro-retrofw-odbeta-cmake-mips32
-    - .core-defs
-
-miyoo-arm32:
-  extends:
-    - .libretro-miyoo-cmake-arm32
-    - .core-defs
-
-# Web
-emscripten:
-  extends:
-    - .libretro-emscripten-static-cmake-retroarch-master
-    - .core-defs
-  before_script:
-    - export NUMPROC=$(($(nproc)/5))
-    - sudo apt-get update -qy
-    - sudo apt-get install -qy software-properties-common
-    - sudo add-apt-repository -y ppa:savoury1/build-tools
-    - sudo apt-get update -qy
-    - sudo apt-get install -qy cmake
