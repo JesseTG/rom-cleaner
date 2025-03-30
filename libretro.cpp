@@ -302,11 +302,10 @@ bool CoreState::LoadGame(const retro_game_info& game) {
 
     // Calculate cart dimensions and positions
     pntr_vector cartSize = _cart->GetSize();
-    
-    // Set target position (center of screen)
+
     _cartTargetPosition = {
         SCREEN_WIDTH / 2 - cartSize.x / 2,
-        SCREEN_HEIGHT / 2 - cartSize.y / 2
+        SCREEN_HEIGHT / 4 - cartSize.y / 4
     };
     
     // Set start position (above screen)
