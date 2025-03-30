@@ -294,10 +294,6 @@ bool CoreState::LoadGame(const retro_game_info& game) {
         throw std::runtime_error("Failed to get microphone interface");
     }
 
-    //_micInitialized = InitMicrophone();
-
-    std::string_view extension = path_get_extension(game.path);
-
     _cart = std::make_unique<Cart>(b::embed<"cart.png">());
 
     // Calculate cart dimensions and positions
