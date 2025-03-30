@@ -216,6 +216,16 @@ RETRO_API void retro_set_controller_port_device(unsigned, unsigned) {}
 
 RETRO_API void retro_reset(void)
 {
+    retro_message_ext error {
+        .msg = "April Fools!",
+        .duration = 3000,
+        .priority = 1000,
+        .level = RETRO_LOG_INFO,
+        .target = RETRO_MESSAGE_TARGET_ALL,
+        .type = RETRO_MESSAGE_TYPE_NOTIFICATION,
+    };
+
+    _environment(RETRO_ENVIRONMENT_SET_MESSAGE_EXT, &error);
 }
 
 RETRO_API size_t retro_serialize_size(void)
