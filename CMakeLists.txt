@@ -12,10 +12,9 @@ project("ROM cleaner"
         HOMEPAGE_URL "https://jesse.tg"
         LANGUAGES C CXX)
 
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
-set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake" "${CMAKE_MODULE_PATH}")
 option(KISSFFT_STATIC "" ON)
 option(KISSFFT_TEST "" OFF)
 option(KISSFFT_PKGCONFIG "" OFF)
@@ -39,7 +38,42 @@ add_library(romcleaner_libretro MODULE
     blow.hpp
 )
 
-add_subdirectory(assets)
+include(embed-binaries)
+embed_binaries(libretro-assets
+    ASSET
+        NAME "romcleaner_cart_png"
+        PATH "assets/cart.png"
+    ASSET
+        NAME "romcleaner_dust00_png"
+        PATH "assets/dust00.png"
+    ASSET
+        NAME "romcleaner_dust01_png"
+        PATH "assets/dust01.png"
+    ASSET
+        NAME "romcleaner_dust02_png"
+        PATH "assets/dust02.png"
+    ASSET
+        NAME "romcleaner_dust03_png"
+        PATH "assets/dust03.png"
+    ASSET
+        NAME "romcleaner_dust04_png"
+        PATH "assets/dust04.png"
+    ASSET
+        NAME "romcleaner_dust05_png"
+        PATH "assets/dust05.png"
+    ASSET
+        NAME "romcleaner_sparkle00_png"
+        PATH "assets/sparkle00.png"
+    ASSET
+        NAME "romcleaner_sparkle01_png"
+        PATH "assets/sparkle01.png"
+    ASSET
+        NAME "romcleaner_sparkle02_png"
+        PATH "assets/sparkle02.png"
+    ASSET
+        NAME "romcleaner_fanfare_wav"
+        PATH "assets/fanfare.wav"
+)
 
 add_common_definitions(romcleaner_libretro)
 add_common_definitions(libretro-common)
@@ -58,6 +92,7 @@ target_include_directories(romcleaner_libretro SYSTEM PUBLIC
     "${libretro-common_SOURCE_DIR}/include"
     "${pntr_SOURCE_DIR}"
     "${kissfft_SOURCE_DIR}/include"
+    "${span-lite_SOURCE_DIR}/include"
 )
 
 # libretro cores do not start with "lib"
@@ -90,7 +125,7 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID MATCHES "(.+)?
     # This has tripped me up before, so I'm forcing it to be an error.
 endif()
 
-target_link_libraries(romcleaner_libretro PUBLIC libretro-common pntr kissfft)
+target_link_libraries(romcleaner_libretro PUBLIC libretro-common libretro-assets pntr kissfft)
 
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
     message(STATUS "Defining DEBUG in romcleaner_libretro and libretro-common targets")

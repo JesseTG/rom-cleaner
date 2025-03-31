@@ -9,12 +9,11 @@
 #include <span>
 #include <pntr.h>
 
-#include "battery/embed.hpp"
+#include <nonstd/span.hpp>
 
 class Cart {
 public:
-    Cart(std::span<const uint8_t> image) noexcept;
-    Cart(const b::EmbedInternal::EmbeddedFile& file) noexcept;
+    Cart(nonstd::span<const uint8_t> image) noexcept;
     ~Cart();
     Cart(const Cart&) = delete;
     Cart& operator=(const Cart&) = delete;

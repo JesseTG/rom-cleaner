@@ -46,7 +46,7 @@ BlowDetector::~BlowDetector() {
     }
 }
 
-bool BlowDetector::IsBlowing(std::span<const int16_t> samples) {
+bool BlowDetector::IsBlowing(nonstd::span<const int16_t> samples) {
     // Compute RMS Energy
     double rms = 0.0;
     for (int16_t sample : samples) {

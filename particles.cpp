@@ -1,44 +1,22 @@
 #include "particles.hpp"
-#include "constants.hpp"
 
 #include <cmath>
 #include <retro_assert.h>
 
 #include <utility>
 
-
-ParticleSystem::ParticleSystem(const b::EmbedInternal::EmbeddedFile& file, const ParticleSystemArgs& args) noexcept :
-    ParticleSystem(std::span((const uint8_t*)file.data(), file.size()), args) {
-}
-
-ParticleSystem::ParticleSystem(std::span<const uint8_t> image, const ParticleSystemArgs& args) noexcept :
+ParticleSystem::ParticleSystem(nonstd::span<const uint8_t> image, const ParticleSystemArgs& args) noexcept :
     _args(args),
     _randomX(args.spawnArea.x, args.spawnArea.x + args.spawnArea.width),
     _randomY(args.spawnArea.y, args.spawnArea.y + args.spawnArea.height),
     _randomImage(0, 0) // Initialize with single image range
 {
-    std::vector<std::span<const uint8_t>> images = {image};
+    std::vector<nonstd::span<const uint8_t>> images = {image};
     LoadImages(images);
     _particles.resize(_args.maxParticles);
 }
 
-ParticleSystem::ParticleSystem(std::span<const b::EmbedInternal::EmbeddedFile> files, const ParticleSystemArgs& args) noexcept :
-    _args(args),
-    _randomX(args.spawnArea.x, args.spawnArea.x + args.spawnArea.width),
-    _randomY(args.spawnArea.y, args.spawnArea.y + args.spawnArea.height)
-{
-    std::vector<std::span<const uint8_t>> images;
-    images.reserve(files.size());
-    
-    for (const auto& file : files) {
-        images.push_back(std::span((const uint8_t*)file.data(), file.size()));
-    }
-    
-    LoadImages(images);
-    _particles.resize(_args.maxParticles);
-}
-
-ParticleSystem::ParticleSystem(std::span<std::span<const uint8_t>> images, const ParticleSystemArgs& args) noexcept :
+ParticleSystem::ParticleSystem(nonstd::span<nonstd::span<const uint8_t>> images, const ParticleSystemArgs& args) noexcept :
     _args(args),
     _randomX(args.spawnArea.x, args.spawnArea.x + args.spawnArea.width),
     _randomY(args.spawnArea.y, args.spawnArea.y + args.spawnArea.height)
@@ -47,7 +25,7 @@ ParticleSystem::ParticleSystem(std::span<std::span<const uint8_t>> images, const
     _particles.resize(_args.maxParticles);
 }
 
-void ParticleSystem::LoadImages(std::span<std::span<const uint8_t>> images) {
+void ParticleSystem::LoadImages(nonstd::span<nonstd::span<const uint8_t>> images) {
     retro_assert(!images.empty());
     
     for (const auto& image : images) {

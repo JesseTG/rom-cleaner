@@ -6,17 +6,10 @@
 
 #include <retro_assert.h>
 
-#include "constants.hpp"
-
-Cart::Cart(std::span<const uint8_t> image) noexcept :
+Cart::Cart(nonstd::span<const uint8_t> image) noexcept :
     _image(pntr_load_image_from_memory(PNTR_IMAGE_TYPE_PNG, image.data(), image.size()))
 {
     retro_assert(_image != nullptr);
-}
-
-Cart::Cart(const b::EmbedInternal::EmbeddedFile& file) noexcept :
-    Cart(std::span{reinterpret_cast<const uint8_t*>(file.data()), file.size()})
-{
 }
 
 Cart::Cart(Cart&& other) noexcept :

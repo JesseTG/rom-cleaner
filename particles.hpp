@@ -1,12 +1,11 @@
 #pragma once
 
 #include <vector>
-#include <span>
 
 #include <pntr.h>
 #include <random>
 
-#include "battery/embed.hpp"
+#include <nonstd/span.hpp>
 
 struct Particle {
     pntr_vector position {0, 0};
@@ -29,11 +28,8 @@ struct ParticleSystemArgs {
 
 class ParticleSystem {
 public:
-    ParticleSystem(const b::EmbedInternal::EmbeddedFile& file, const ParticleSystemArgs& args) noexcept;
-    ParticleSystem(std::span<const uint8_t> image, const ParticleSystemArgs& args) noexcept;
-
-    ParticleSystem(std::span<const b::EmbedInternal::EmbeddedFile> files, const ParticleSystemArgs& args) noexcept;
-    ParticleSystem(std::span<std::span<const uint8_t>> images, const ParticleSystemArgs& args) noexcept;
+    ParticleSystem(nonstd::span<const uint8_t> image, const ParticleSystemArgs& args) noexcept;
+    ParticleSystem(nonstd::span<nonstd::span<const uint8_t>> images, const ParticleSystemArgs& args) noexcept;
     
     ~ParticleSystem() noexcept;
     ParticleSystem(ParticleSystem&) = delete;
@@ -61,5 +57,5 @@ private:
 
     void EmitParticle(double max);
     void UpdateSpawnArea();
-    void LoadImages(std::span<std::span<const uint8_t>> images);
+    void LoadImages(nonstd::span<nonstd::span<const uint8_t>> images);
 };

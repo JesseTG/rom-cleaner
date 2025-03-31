@@ -3,11 +3,9 @@
 #include <kiss_fft.h>
 #include <memory>
 
-#include <battery/embed.hpp>
 #include <libretro.h>
 #include <pntr.h>
 #include <retro_assert.h>
-#include <span>
 #include <audio/audio_mixer.h>
 #include <audio/conversion/float_to_s16.h>
 #include <file/file_path.h>
@@ -17,6 +15,18 @@
 #include "cart.hpp"
 #include "constants.hpp"
 #include "particles.hpp"
+
+#include "embedded/romcleaner_cart_png.h"
+#include "embedded/romcleaner_dust00_png.h"
+#include "embedded/romcleaner_dust01_png.h"
+#include "embedded/romcleaner_dust02_png.h"
+#include "embedded/romcleaner_dust03_png.h"
+#include "embedded/romcleaner_dust04_png.h"
+#include "embedded/romcleaner_dust05_png.h"
+#include "embedded/romcleaner_fanfare_wav.h"
+#include "embedded/romcleaner_sparkle00_png.h"
+#include "embedded/romcleaner_sparkle01_png.h"
+#include "embedded/romcleaner_sparkle02_png.h"
 
 using std::array;
 
@@ -49,10 +59,9 @@ struct CoreState
 
         audio_mixer_init(SAMPLE_RATE);
 
-        const auto& fanfareWav = b::embed<"fanfare.wav">();
         _fanfareSound = audio_mixer_load_wav(
-            (void*)fanfareWav.data(),
-            fanfareWav.size(),
+            (void*)embedded_romcleaner_fanfare_wav,
+            sizeof(embedded_romcleaner_fanfare_wav),
             "sinc",
             RESAMPLER_QUALITY_DONTCARE
         );
@@ -304,7 +313,7 @@ bool CoreState::LoadGame(const retro_game_info& game) {
         throw std::runtime_error("Failed to get microphone interface");
     }
 
-    _cart = std::make_unique<Cart>(b::embed<"cart.png">());
+    _cart = std::make_unique<Cart>(nonstd::span {embedded_romcleaner_cart_png, sizeof(embedded_romcleaner_cart_png)});
 
     // Calculate cart dimensions and positions
     pntr_vector cartSize = _cart->GetSize();
@@ -330,13 +339,13 @@ bool CoreState::LoadGame(const retro_game_info& game) {
     // Initialize particles with multiple dust images
     pntr_vector cartPos = _cart->GetPosition();
     
-    std::array<const b::EmbedInternal::EmbeddedFile, 6> dustImages = {
-        b::embed<"dust00.png">(),
-        b::embed<"dust01.png">(),
-        b::embed<"dust02.png">(),
-        b::embed<"dust03.png">(),
-        b::embed<"dust04.png">(),
-        b::embed<"dust05.png">()
+    std::array<nonstd::span<const uint8_t>, 6> dustImages = {
+        nonstd::span {embedded_romcleaner_dust00_png, sizeof(embedded_romcleaner_dust00_png)},
+        {embedded_romcleaner_dust01_png, sizeof(embedded_romcleaner_dust01_png)},
+        {embedded_romcleaner_dust02_png, sizeof(embedded_romcleaner_dust02_png)},
+        {embedded_romcleaner_dust03_png, sizeof(embedded_romcleaner_dust03_png)},
+        {embedded_romcleaner_dust04_png, sizeof(embedded_romcleaner_dust04_png)},
+        {embedded_romcleaner_dust05_png, sizeof(embedded_romcleaner_dust05_png)},
     };
     
     _particles = std::make_unique<ParticleSystem>(
@@ -405,7 +414,7 @@ void CoreState::Update() {
 
         bool isBlowing = false;
         if (samplesRead > 0) {
-            isBlowing = _blowDetector.IsBlowing(std::span(samples.data(), samplesRead));
+            isBlowing = _blowDetector.IsBlowing(nonstd::span(samples.data(), samplesRead));
             
             // Instead of showing debug message, update dust level based on blowing
             if (isBlowing) {
@@ -438,10 +447,10 @@ void CoreState::Update() {
         // If dust level reaches zero and we haven't created sparkles yet, create them
         if (_dustLevel <= 0 && !_sparkles) {
             // Create sparkle particle system
-            std::array<const b::EmbedInternal::EmbeddedFile, 3> sparkleImages = {
-                b::embed<"sparkle00.png">(),
-                b::embed<"sparkle01.png">(),
-                b::embed<"sparkle02.png">()
+            std::array<nonstd::span<const uint8_t>, 3> sparkleImages = {
+                nonstd::span { embedded_romcleaner_sparkle00_png, sizeof(embedded_romcleaner_sparkle00_png) },
+                { embedded_romcleaner_sparkle01_png, sizeof(embedded_romcleaner_sparkle01_png) },
+                { embedded_romcleaner_sparkle02_png, sizeof(embedded_romcleaner_sparkle02_png) },
             };
 
             pntr_vector cartPos = _cart->GetPosition();

@@ -3,7 +3,7 @@
 #include <array>
 #include <cstdint>
 #include <kiss_fft.h>
-#include <span>
+#include <nonstd/span.hpp>
 
 #include "constants.hpp"
 
@@ -21,7 +21,7 @@ public:
     BlowDetector(BlowDetector&& other) noexcept;
     BlowDetector& operator=(const BlowDetector&) = delete;
     BlowDetector& operator=(BlowDetector&& other) noexcept;
-    bool IsBlowing(std::span<const int16_t> samples);
+    bool IsBlowing(nonstd::span<const int16_t> samples);
 
 private:
     kiss_fft_cfg _fftConfig = nullptr;

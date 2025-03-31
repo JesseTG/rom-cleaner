@@ -37,9 +37,11 @@ function(fetch_dependency name default_url default_tag)
     FetchContent_GetProperties(${name})
 endfunction()
 
+set(CMAKE_MODULE_PATH "${FETCHCONTENT_BASE_DIR}/embed-binaries-src/cmake" "${CMAKE_MODULE_PATH}")
 fetch_dependency(libretro-common "https://github.com/libretro/libretro-common" "fce57fd")
-fetch_dependency(embed "https://github.com/batterycenter/embed.git" "4650819")
+fetch_dependency(embed-binaries "https://github.com/andoalon/embed-binaries.git" "21f28ca")
 fetch_dependency(pntr "https://github.com/RobLoach/pntr" "8855a90")
 fetch_dependency(kissfft "https://github.com/mborgerding/kissfft" "febd4ca")
+fetch_dependency(span-lite "https://github.com/martinmoene/span-lite" "00afc28")
 
-FetchContent_MakeAvailable(libretro-common pntr embed kissfft)
+FetchContent_MakeAvailable(libretro-common pntr embed-binaries kissfft span-lite)
