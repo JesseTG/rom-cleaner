@@ -262,13 +262,13 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game) try
     return Core.LoadGame(*game);
 }
 catch (const std::exception &e) {
-    retro_message_ext error {
-        .msg = e.what(),
-        .duration = 3000,
-        .level = RETRO_LOG_ERROR,
-        .target = RETRO_MESSAGE_TARGET_ALL,
-        .type = RETRO_MESSAGE_TYPE_NOTIFICATION,
-    };
+    retro_message_ext error {};
+
+    error.msg = e.what();
+    error.duration = 3000;
+    error.level = RETRO_LOG_ERROR;
+    error.target = RETRO_MESSAGE_TARGET_ALL;
+    error.type = RETRO_MESSAGE_TYPE_NOTIFICATION;
 
     _environment(RETRO_ENVIRONMENT_SET_MESSAGE_EXT, &error);
     return false;
@@ -537,28 +537,23 @@ void CoreState::UpdateDustLevel(bool isBlowing) {
 
 // New method to display dust status
 void CoreState::DisplayDustStatus() {
-    retro_message_ext dustMessage {
-        .msg = "Blow into the microphone to clean your ROM!",
-        .duration = 33, // Show continuously with short duration
-        .level = RETRO_LOG_INFO,
-        .target = RETRO_MESSAGE_TARGET_OSD,
-        .type = RETRO_MESSAGE_TYPE_PROGRESS,
-        .progress = static_cast<int8_t>(_dustLevel), // Use dust level for progress bar
-    };
-    _environment(RETRO_ENVIRONMENT_SET_MESSAGE_EXT, &dustMessage);
-    
-    // Show special message when cartridge is clean
-    if (_dustLevel <= 0) {
-        retro_message_ext cleanMessage {
-            .msg = "Your ROM is now clean!",
-            .duration = 33,
-            .level = RETRO_LOG_INFO,
-            .target = RETRO_MESSAGE_TARGET_OSD,
-            .type = RETRO_MESSAGE_TYPE_PROGRESS,
-            .progress = -1,
-        };
-        _environment(RETRO_ENVIRONMENT_SET_MESSAGE_EXT, &cleanMessage);
+    retro_message_ext message = {};
+
+    message.duration = 33; // Show continuously with short duration
+    message.level = RETRO_LOG_INFO;
+    message.target = RETRO_MESSAGE_TARGET_OSD;
+    message.type = RETRO_MESSAGE_TYPE_PROGRESS;
+    message.progress = static_cast<int8_t>(_dustLevel); // Use dust level for progress bar
+
+    if (_dustLevel > 0) {
+        message.msg = "Blow into the microphone to clean your ROM!";
     }
+    else {
+        // Show special message when cartridge is clean
+        message.msg = "Your ROM is clean!";
+    }
+
+    _environment(RETRO_ENVIRONMENT_SET_MESSAGE_EXT, &message);
 }
 
 void CoreState::Render() {
