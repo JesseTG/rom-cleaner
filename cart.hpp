@@ -6,7 +6,6 @@
 #define CART_HPP
 
 #include <cstdint>
-#include <span>
 #include <pntr.h>
 
 #include <nonstd/span.hpp>
