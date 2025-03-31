@@ -8,7 +8,6 @@
 #include <retro_assert.h>
 #include <audio/audio_mixer.h>
 #include <audio/conversion/float_to_s16.h>
-#include <file/file_path.h>
 #include <string/stdstring.h>
 
 #include "blow.hpp"
