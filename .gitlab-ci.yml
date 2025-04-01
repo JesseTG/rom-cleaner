@@ -55,25 +55,25 @@ stages:
 #
 ################################### DESKTOPS #################################
 # Windows 64-bit
-windows-x64:
+libretro-build-windows-x64:
   extends:
     - .libretro-windows-cmake-x86_64
     - .core-defs
 
 # Windows 64-bit
-windows-x86:
+libretro-build-windows-x86:
   extends:
     - .libretro-windows-cmake-x86
     - .core-defs
 
 # Linux 32-bit
-linux-x86:
+libretro-build-linux-x86:
   extends:
     - .libretro-linux-cmake-x86
     - .core-defs
 
 # Linux 64-bit
-linux-x64:
+libretro-build-linux-x64:
   extends:
     - .libretro-linux-cmake-x86_64
     - .core-defs
@@ -88,13 +88,13 @@ linux-x64:
   # This container's existing installation of CMake is way too old
 
 # MacOS 64-bit
-osx-x64:
+libretro-build-osx-x64:
   extends:
     - .libretro-osx-cmake-x86_64
     - .core-defs
 
 # MacOS ARM 64-bit
-osx-arm64:
+libretro-build-osx-arm64:
   extends:
     - .libretro-osx-cmake-arm64
     - .core-defs
@@ -102,13 +102,13 @@ osx-arm64:
 ################################### CELLULAR #################################
 
 # Android ARMv7a
-android-armeabi-v7a:
+libretro-build-android-armeabi-v7a:
   extends:
     - .libretro-android-cmake-armeabi-v7a
     - .core-defs
 
 # Android ARMv8a
-android-arm64-v8a:
+libretro-build-android-arm64-v8a:
   extends:
     - .libretro-android-cmake-arm64-v8a
     - .core-defs
@@ -119,13 +119,13 @@ android-arm64-v8a:
     - apt-get install -qy cmake/bullseye-backports
 
 # Android 32-bit x86
-android-x86:
+libretro-build-android-x86:
   extends:
     - .libretro-android-cmake-x86
     - .core-defs
 
 # Android 64-bit x86
-android-x86_64:
+libretro-build--x86_64:
   extends:
     - .libretro-android-cmake-x86_64
     - .core-defs
@@ -136,7 +136,7 @@ android-x86_64:
     - apt-get install -qy cmake/bullseye-backports
 
 # iOS
-ios-arm64:
+libretro-build-ios-arm64:
   extends:
     - .libretro-ios-cmake-arm64
     - .core-defs
@@ -144,7 +144,7 @@ ios-arm64:
     CORE_ARGS: --toolchain ./cmake/toolchain/ios.toolchain.cmake -DPLATFORM=OS64
 
 # tvOS
-tvos-arm64:
+libretro-build-tvos-arm64:
   extends:
     - .libretro-tvos-cmake-arm64
     - .core-defs
