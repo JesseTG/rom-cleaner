@@ -124,7 +124,7 @@ libretro-build-android-x86:
     - .core-defs
 
 # Android 64-bit x86
-libretro-build--x86_64:
+libretro-build-android-x86_64:
   extends:
     - .libretro-android-cmake-x86_64
     - .core-defs
