@@ -43,6 +43,10 @@ include:
   - project: 'libretro-infrastructure/ci-templates'
     file: '/tvos-cmake.yml'
 
+  # webOS 32-bit (LGTV)
+  - project: 'libretro-infrastructure/ci-templates'
+    file: '/webos-cmake.yml'
+
 # Stages for building
 stages:
   - build-prepare
@@ -86,6 +90,12 @@ libretro-build-linux-x64:
     - sudo apt-get update -qy
     - sudo apt-get install -qy cmake
   # This container's existing installation of CMake is way too old
+
+# Linux ARM 64-bit
+libretro-build-linux-aarch64:
+  extends:
+    - .libretro-linux-cmake-aarch64
+    - .core-defs
 
 # MacOS 64-bit
 libretro-build-osx-x64:
@@ -148,3 +158,9 @@ libretro-build-tvos-arm64:
     - .core-defs
   variables:
     CORE_ARGS: --toolchain ./cmake/toolchain/ios.toolchain.cmake -DPLATFORM=TVOS
+
+# webOS 32-bit
+libretro-build-webos-armv7a:
+  extends:
+    - .libretro-webos-armv7a-cmake
+    - .core-defs
